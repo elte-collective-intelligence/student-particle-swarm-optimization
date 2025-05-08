@@ -1,0 +1,7 @@
+torch
+torchrl
+hydra-core
+wandb
+numpy
+matplotlib
+imageio
