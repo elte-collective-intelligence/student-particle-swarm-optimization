@@ -1,1 +1,1 @@
-from .env import PSOEnv, LandscapeWrapper
+from .env import PSOEnv

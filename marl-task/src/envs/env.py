@@ -1,6 +1,6 @@
 import torch
 from torchrl.envs import EnvBase
-from torchrl.data import Composite, Unbounded
+from torchrl.data import Composite, Unbounded, Categorical
 from tensordict import TensorDict
 
 class PSOEnv(EnvBase):
@@ -42,6 +42,9 @@ class PSOEnv(EnvBase):
             "cognitive": Unbounded(self.batch_size + (num_agents, landscape.dim), device=device),
             "social": Unbounded(self.batch_size + (num_agents, landscape.dim), device=device)
         }, shape=torch.Size(batch_size))
+
+        self.reward_spec = Unbounded(self.batch_size, device=device)
+        self.done_spec = Categorical(n=2, shape=self.batch_size, dtype=torch.bool)
     
     def _reset(self, params = None) -> TensorDict:
         # Reset landscape function
@@ -57,14 +60,13 @@ class PSOEnv(EnvBase):
         self.scores = self.landscape(self.positions)
         # may need to call .clone() on fields
         return TensorDict({
-            "observations": TensorDict({
-                "scores": self.scores,
-                "positions": self.positions,
-                "velocities": self.velocities,
-                "personal_best_pos": self.personal_best_pos,
-                "personal_best_scores": self.personal_best_scores,
-                "avg_pos": self.avg_pos,
-                "avg_vel": self.avg_vel}),
+            "scores": self.scores,
+            "positions": self.positions,
+            "velocities": self.velocities,
+            "personal_best_pos": self.personal_best_pos,
+            "personal_best_scores": self.personal_best_scores,
+            "avg_pos": self.avg_pos,
+            "avg_vel": self.avg_vel,
             "reward": torch.zeros(self.batch_size, device=self.device),
             "done": torch.zeros(self.batch_size, dtype=torch.bool, device=self.device)
         }, batch_size=self.batch_size)
@@ -90,14 +92,13 @@ class PSOEnv(EnvBase):
         self.avg_pos, self.avg_vel = get_neighborhood_avg(self.positions, self.velocities, self.delta)
         
         return TensorDict({
-            "observations": TensorDict({
-                "scores": self.scores,
-                "positions": self.positions,
-                "velocities": self.velocities,
-                "personal_best_pos": self.personal_best_pos,
-                "personal_best_scores": self.personal_best_scores,
-                "avg_pos": self.avg_pos,
-                "avg_vel": self.avg_vel}),
+            "scores": self.scores,
+            "positions": self.positions,
+            "velocities": self.velocities,
+            "personal_best_pos": self.personal_best_pos,
+            "personal_best_scores": self.personal_best_scores,
+            "avg_pos": self.avg_pos,
+            "avg_vel": self.avg_vel,
             "reward": (self.scores - last_scores).mean(dim=1),
             "done": torch.zeros(self.batch_size, dtype=torch.bool, device=self.device) # change
         }, batch_size=self.batch_size)
@@ -121,16 +122,3 @@ def get_neighborhood_avg(positions, velocities, delta):
     avg_vel = avg_vel - velocities
 
     return avg_pos, avg_vel
-
-
-
-class LandscapeWrapper:
-    def __init__(self, function, dim):
-        self.function = function
-        self.dim = dim
-    
-    def __call__(self, x):
-        return self.function(x)
-    
-    def reset(self):
-        pass
