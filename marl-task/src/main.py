@@ -44,72 +44,60 @@ def eggholder(x: torch.Tensor) -> torch.Tensor:
 def square(x: torch.Tensor) -> torch.Tensor:
     return x * x
 
-def train(env, policy, critic, collector, replay_buffer, loss_module, optim, total_frames, frames_per_batch, minibatch_size, num_epochs, max_grad_norm, gamma, lmbda, device):
-    """PPO Training loop."""
-    pbar = tqdm(total=total_frames)
-    total_collected_frames = 0
+
+
+def train(collector, replay_buffer, loss_module, optim, num_epochs, max_grad_norm, total_frames):
+    """
+    Train the PPO agents.
+    """
+    losses = []
+    rewards = []
     
-    episode_rewards = []
-    mean_rewards_log = []
-
+    pbar = tqdm(total=total_frames, desc="Training Progress")
+    
     for i, data in enumerate(collector):
-        total_collected_frames += data.numel()
-        pbar.update(data.numel())
-
-        # Store data in replay buffer
-        replay_buffer.extend(data.reshape(-1))
+        # Compute GAE and value targets
+        with torch.no_grad():
+            data = loss_module.value_estimator(data)
         
-        current_frames = data.numel()
-        # Log episode rewards
-        done_episodes = data[("next", "agents", "done")].any(dim=-1) # if any agent is done
-        if done_episodes.any():
-            episode_rewards.extend(data[("next", "agents", "episode_reward")][done_episodes].tolist())
-
-
+        # Store data in replay buffer
+        replay_buffer.extend(data.view(-1))
+        
+        # Training phase
         for epoch in range(num_epochs):
-            for _ in range(frames_per_batch // minibatch_size):
-                batch = replay_buffer.sample()
+            subdata_list = []
+            for subdata in replay_buffer:
+                loss_vals = loss_module(subdata)
+                loss_val = (
+                    loss_vals["loss_objective"] + 
+                    loss_vals["loss_critic"] + 
+                    loss_vals["loss_entropy"]
+                )
                 
-                # Compute GAE
-                with torch.no_grad():
-                    advantage = ValueEstimators.GAE(
-                        gamma=gamma,
-                        lmbda=lmbda,
-                        state_value_key="state_value",
-                        next_state_value_key="state_value", # critic will be called on next_obs
-                        reward_key=("agents", "reward"),
-                        done_key=("agents", "done"),
-                        terminated_key=("agents", "terminated"),
-                    )(batch, critic_params=critic.parameters(), target_critic_params=critic.parameters()) # Pass critic params if needed by GAE
-
-                loss_td = loss_module(batch)
-                loss = loss_td["loss_objective"] + loss_td["loss_critic"] + loss_td["loss_entropy"]
-
+                # Backward pass
                 optim.zero_grad()
-                loss.backward()
+                loss_val.backward()
                 torch.nn.utils.clip_grad_norm_(loss_module.parameters(), max_grad_norm)
                 optim.step()
+                
+                subdata_list.append(subdata)
         
-        if episode_rewards:
-            mean_rewards_log.append(sum(episode_rewards) / len(episode_rewards))
-            episode_rewards = [] # Reset for next logging interval
-
-        if i % 10 == 0: # Log every 10 collections
-            print(f"Iteration {i}: Total frames {total_collected_frames}, Mean reward (last 10 collections): {mean_rewards_log[-1] if mean_rewards_log else 'N/A'}")
-
-
-    collector.shutdown()
-    pbar.close()
+        # Logging
+        episode_reward = data[("agents", "episode_reward")].mean().item()
+        rewards.append(episode_reward)
+        losses.append(loss_val.item())
+        
+        pbar.set_postfix({
+            "Episode Reward": f"{episode_reward:.3f}",
+            "Loss": f"{loss_val.item():.3f}"
+        })
+        pbar.update(data.numel())
+        
+        # Clear replay buffer for next iteration
+        replay_buffer.empty()
     
-    # Plotting rewards
-    plt.figure(figsize=(10, 5))
-    plt.plot(mean_rewards_log)
-    plt.xlabel("Collection Iterations (x10)")
-    plt.ylabel("Mean Episode Reward")
-    plt.title("PPO Training Rewards")
-    plt.savefig("ppo_rewards.png")
-    plt.show()
-
+    pbar.close()
+    return losses, rewards
 
 def main():
     landscape_dim = 2
@@ -249,24 +237,41 @@ def main():
 
     optim = torch.optim.Adam(loss_module.parameters(), lr=lr)
 
-    # Call the train function
-    train(
-        env=env,
-        policy=policy,
-        critic=critic,
+    # Add GAE value estimator
+    loss_module.make_value_estimator(
+        ValueEstimators.GAE,
+        gamma=gamma,
+        lmbda=lmbda
+    )
+
+    # Train the agents
+    losses, rewards = train(
         collector=collector,
         replay_buffer=replay_buffer,
         loss_module=loss_module,
         optim=optim,
-        total_frames=total_frames,
-        frames_per_batch=frames_per_batch,
-        minibatch_size=minibatch_size,
         num_epochs=num_epochs,
         max_grad_norm=max_grad_norm,
-        gamma=gamma,
-        lmbda=lmbda,
-        device=device
+        total_frames=total_frames
     )
+    
+    # Plot results
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(rewards)
+    plt.title("Episode Rewards")
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(losses)
+    plt.title("Training Loss")
+    plt.xlabel("Training Step")
+    plt.ylabel("Loss")
+    
+    plt.tight_layout()
+    plt.save("training_results.png")
 
 
 if __name__ == "__main__":
