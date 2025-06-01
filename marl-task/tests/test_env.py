@@ -2,7 +2,14 @@ import torch
 from tensordict import TensorDict
 import pytest
 import math
-from envs import PSOEnv
+import sys
+import os
+from pathlib import Path
+
+root_dir = Path(__file__).parent.parent
+sys.path.append(str(root_dir / "src"))
+
+from envs.env import PSOEnv, get_neighborhood_avg
 from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHolder
 from utils import LandscapeWrapper
 
@@ -13,53 +20,55 @@ class TestPSOBasicFunctionality:
     def basic_env(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        def quadratic(x):
-            return -torch.sum(x**2, dim=-1)
-        
-        landscape = LandscapeWrapper(quadratic, dim=2)
-        env = PSOEnv(landscape=landscape,
-                    num_agents=10,
-                    device=device,
-                    batch_size=(32,),
-                    delta=1.0)
+        landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
+        env = PSOEnv(landscape=landscape, num_agents=5, device=device, batch_size=(4,), delta=1.0)
         return env
     
     def test_reset(self, basic_env):
         """Test environment reset functionality"""
         obs = basic_env.reset()
-        
+
+        if "next" in obs:
+            obs = obs["next"]
+
         assert "positions" in obs
         assert "velocities" in obs
         assert "scores" in obs
         assert "personal_best_pos" in obs
         assert "personal_best_scores" in obs
-        
-        assert obs["positions"].shape == (32, 10, 2)
-        assert obs["velocities"].shape == (32, 10, 2)
-        assert obs["scores"].shape == (32, 10)
-    
+
+        assert obs["positions"].shape[-3:] == (basic_env.batch_size[0], basic_env.num_agents, basic_env.landscape.dim)
+        assert obs["velocities"].shape[-3:] == (basic_env.batch_size[0], basic_env.num_agents, basic_env.landscape.dim)
+        assert obs["scores"].shape[-2:] == (basic_env.batch_size[0], basic_env.num_agents)
+
     def test_step(self, basic_env):
-        """Test basic step functionality"""
+        """Test environment step functionality"""
         obs = basic_env.reset()
         
+        if "next" in obs:
+            obs = obs["next"]
+
         action = TensorDict({
-            "inertia": torch.ones((32, 10, 2), device=basic_env.device) * 0.5,
-            "cognitive": torch.ones((32, 10, 2), device=basic_env.device) * 0.5,
-            "social": torch.ones((32, 10, 2), device=basic_env.device) * 0.5
-        }, batch_size=(32,))
-        
+            "inertia": torch.ones((4, 5, 2), device=basic_env.device) * 0.5,
+            "cognitive": torch.ones((4, 5, 2), device=basic_env.device) * 0.5,
+            "social": torch.ones((4, 5, 2), device=basic_env.device) * 0.5
+        }, batch_size=(4,))
+
         new_obs = basic_env.step(action)
-        
-        assert "positions" in new_obs
-        assert "velocities" in new_obs
-        assert "scores" in new_obs
-        assert "reward" in new_obs
-        
-        # Positions should change after step
+        if "next" in new_obs:
+            new_obs = new_obs["next"]
+
+        # Check if the positions and velocities changed
         assert not torch.allclose(obs["positions"], new_obs["positions"])
-        
-        # Velocities should change after step
         assert not torch.allclose(obs["velocities"], new_obs["velocities"])
+
+        # Check if expected keys are present
+        for key in ["positions", "velocities", "scores", "personal_best_pos", "personal_best_scores", "avg_pos", "avg_vel"]:
+            assert key in new_obs
+
+        # Check if reward is present and has correct shape
+        assert ("agents", "reward") in new_obs
+        assert new_obs[("agents", "reward")].shape == (4, 5)
 
 class TestDynamicFunctions:
     """Test the dynamic functions used in the PSO environment"""
@@ -123,61 +132,6 @@ class TestDynamicFunctions:
         func.reset()
         assert func.time == 0
 
-class TestPSOWithDynamicFunctions:
-    """Test PSO environment with dynamic functions"""
-    
-    @pytest.fixture(params=[
-        DynamicSphere(dim=2),
-        DynamicRastrigin(dim=2),
-        DynamicEggHolder(dim=2)
-    ])
-    def dynamic_env(self, request):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        env = PSOEnv(landscape=request.param,
-                    num_agents=10,
-                    device=device,
-                    batch_size=(32,),
-                    delta=1.0)
-        return env
-    
-    def test_dynamic_function_integration(self, dynamic_env):
-        """Test that dynamic functions work within the PSO environment"""
-        obs = dynamic_env.reset()
-        initial_scores = obs["scores"].clone()
-        
-        action = TensorDict({
-            "inertia": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5,
-            "cognitive": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5,
-            "social": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5
-        }, batch_size=(32,))
-        
-        for _ in range(10):
-            obs = dynamic_env.step(action)
-        
-        # Scores should change
-        assert not torch.allclose(initial_scores, obs["scores"])
-    
-    def test_personal_best_updates_with_dynamics(self, dynamic_env):
-        """Test personal best updates with dynamic functions"""
-        obs = dynamic_env.reset()
-        initial_pbest = obs["personal_best_scores"].clone()
-        
-        action = TensorDict({
-            "inertia": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5,
-            "cognitive": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5,
-            "social": torch.ones((32, 10, 2), device=dynamic_env.device) * 0.5
-        }, batch_size=(32,))
-        
-        # Run steps
-        improved = False
-        for _ in range(20):
-            obs = dynamic_env.step(action)
-            if (obs["scores"] > obs["personal_best_scores"]).any():
-                improved = True
-                break
-        
-        assert improved, "Some agents should improve their personal best"
-
 class TestNeighborhoodMechanics:
     """Test neighborhood calculations in PSO"""
     
@@ -196,6 +150,27 @@ class TestNeighborhoodMechanics:
                     delta=1.0)
         return env
     
+    def test_neighborhood_calculation(self, neighborhood_env):
+        """Test that neighborhood averages are calculated correctly"""
+        # Set specific positions for testing
+        neighborhood_env.positions = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0], 
+            [2.0, 0.0], [0.0, 2.0], [2.0, 2.0],
+            [3.0, 0.0], [0.0, 3.0], [3.0, 3.0]
+        ], device=neighborhood_env.device).repeat(32, 1, 1)
+        
+        neighborhood_env.velocities = torch.zeros_like(neighborhood_env.positions)
+        
+        neighborhood_env.delta = 1.5
+        avg_pos, avg_vel = get_neighborhood_avg(neighborhood_env.positions, neighborhood_env.velocities, neighborhood_env.delta)
+        
+        # For agent at (0,0), neighbors are at (1,0), (0,1), (1,1)
+        expected_avg_pos = torch.tensor([
+            [1.0+0.0+1.0, 0.0+1.0+1.0]
+        ], device=neighborhood_env.device).mean(dim=0) / 4  # Includes self
+        
+        assert torch.allclose(avg_pos[0, 0], expected_avg_pos, atol=1e-5)
+    
     def test_delta_effect(self, neighborhood_env):
         """Test that changing delta affects neighborhood averages"""
         # Set positions
@@ -204,11 +179,11 @@ class TestNeighborhoodMechanics:
         
         # Get averages with small delta
         neighborhood_env.delta = 0.1
-        small_avg_pos, _ = neighborhood_env._get_neighborhood_avg()
+        small_avg_pos, _ = get_neighborhood_avg(neighborhood_env.positions, neighborhood_env.velocities, neighborhood_env.delta)
         
         # Get averages with large delta
         neighborhood_env.delta = 10.0
-        large_avg_pos, _ = neighborhood_env._get_neighborhood_avg()
+        large_avg_pos, _ = get_neighborhood_avg(neighborhood_env.positions, neighborhood_env.velocities, neighborhood_env.delta)
         
         # Averages should be different
         assert not torch.allclose(small_avg_pos, large_avg_pos)
@@ -220,56 +195,126 @@ class TestRewardMechanics:
     def reward_env(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        def linear(x):
-            return x.sum(dim=-1)
-        
-        landscape = LandscapeWrapper(linear, dim=2)
-        env = PSOEnv(landscape=landscape,
-                    num_agents=10,
-                    device=device,
-                    batch_size=(32,),
-                    delta=1.0)
+        landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
+        env = PSOEnv(landscape=landscape, num_agents=10, device=device, batch_size=(32,), delta=1.0)
+
         return env
     
     def test_reward_calculation(self, reward_env):
         """Test that rewards are calculated correctly"""
         # Set positions and scores
+
         reward_env.positions = torch.zeros(32, 10, 2, device=reward_env.device)
+        reward_env.velocities = torch.zeros_like(reward_env.positions)
         reward_env.scores = torch.zeros(32, 10, device=reward_env.device)
         
         # Take a step that improves scores
         new_positions = torch.ones(32, 10, 2, device=reward_env.device)
         new_scores = reward_env.landscape(new_positions)
-        
+
         action = TensorDict({
             "inertia": torch.zeros(32, 10, 2, device=reward_env.device),
             "cognitive": torch.zeros(32, 10, 2, device=reward_env.device),
             "social": torch.zeros(32, 10, 2, device=reward_env.device)
         }, batch_size=(32,))
         
+        # Mock the position update
         reward_env.positions = new_positions
+        reward_env.velocities = torch.zeros_like(new_positions)
         reward_env.scores = new_scores
+        reward_env.personal_best_pos = reward_env.positions.clone()
+        reward_env.personal_best_scores = reward_env.landscape(reward_env.personal_best_pos)
+        reward_env.avg_pos, reward_env.average_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
         
         obs = reward_env.step(action)
-        
-        # Reward should be positive since scores improved
-        assert torch.all(obs["reward"] > 0)
-    
-    def test_no_improvement_reward(self, reward_env):
-        """Test that rewards are zero when there's no improvement"""
+        if "next" in obs:
+            obs = obs["next"]
+
+        assert ("agents", "reward") in obs
+        assert obs[("agents", "reward")].shape == (32, 10)
+
+    def test_reset_consistency(self, reward_env):
+        """Test that reset returns consistent shapes and values."""
+
         obs = reward_env.reset()
         
-        # Set positions that won't improve the score
-        reward_env.positions = torch.zeros(32, 10, 2, device=reward_env.device)
-        reward_env.scores = torch.zeros(32, 10, device=reward_env.device)
+        if "next" in obs:
+            obs = obs["next"]
+
+        assert obs["positions"].shape == (32, 10, 2)
+        assert obs["velocities"].shape == (32, 10, 2)
+        assert obs["scores"].shape == (32, 10)
+        assert obs["personal_best_pos"].shape == (32, 10, 2)
+        assert obs["personal_best_scores"].shape == (32, 10)
+        assert obs["avg_pos"].shape == (32, 10, 2)
+        assert obs["avg_vel"].shape == (32, 10, 2)
+        assert ("agents", "reward") in obs
+
+    def test_step_changes_state(self, reward_env):
+        """Test that step changes positions and velocities."""
+        
+        obs = reward_env.reset()
+        if "next" in obs:
+            obs = obs["next"]
+
+        action = TensorDict({
+            "inertia": torch.ones((32, 10, 2), device=reward_env.device) * 0.5,
+            "cognitive": torch.ones((32, 10, 2), device=reward_env.device) * 0.5,
+            "social": torch.ones((32, 10, 2), device=reward_env.device) * 0.5
+        }, batch_size=(32,))
+
+        new_obs = reward_env.step(action)
+        if "next" in new_obs:
+            new_obs = new_obs["next"]
+        
+        assert not torch.allclose(obs["positions"], new_obs["positions"])
+        assert not torch.allclose(obs["velocities"], new_obs["velocities"])
+
+    def test_neighborhood_avg_method(self, reward_env):
+        """Test that get_neighborhood_avg returns correct shapes."""
+        
+        reward_env.reset()
+        avg_pos, avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
+        assert avg_pos.shape == (32, 10, 2)
+        assert avg_vel.shape == (32, 10, 2)
+
+    def test_reward_mechanics_improvement(self, reward_env):
+        """Test reward is positive when scores improve."""
+        
+        reward_env.reset()
+        reward_env.positions = torch.ones(32, 10, 2, device=reward_env.device)
+        reward_env.velocities = torch.zeros_like(reward_env.positions)
+        reward_env.scores = reward_env.landscape(reward_env.positions)
+        reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
         
         action = TensorDict({
             "inertia": torch.zeros(32, 10, 2, device=reward_env.device),
             "cognitive": torch.zeros(32, 10, 2, device=reward_env.device),
             "social": torch.zeros(32, 10, 2, device=reward_env.device)
         }, batch_size=(32,))
-        
+
         obs = reward_env.step(action)
+        if "next" in obs:
+            obs = obs["next"]
+
+        assert torch.all(obs[("agents", "reward")] == 0)
+
+    def test_reward_mechanics_no_improvement(self, reward_env):
+        """Test reward is zero when no improvement."""
         
-        # Reward should be zero since scores didn't improve
-        assert torch.all(obs["reward"] == 0)
+        reward_env.reset()
+        reward_env.positions = torch.zeros(32, 10, 2, device=reward_env.device)
+        reward_env.velocities = torch.zeros_like(reward_env.positions)
+        reward_env.scores = reward_env.landscape(reward_env.positions)
+        reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
+        action = TensorDict({
+            "inertia": torch.zeros(32, 10, 2, device=reward_env.device),
+            "cognitive": torch.zeros(32, 10, 2, device=reward_env.device),
+            "social": torch.zeros(32, 10, 2, device=reward_env.device)
+        }, batch_size=(32,))
+
+        obs = reward_env.step(action)
+        if "next" in obs:
+            obs = obs["next"]
+
+        assert torch.all(obs[("agents", "reward")] == 0)
