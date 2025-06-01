@@ -43,8 +43,18 @@ class PSOEnv(EnvBase):
             "social": Unbounded(self.batch_size + (num_agents, landscape.dim), device=device)
         }, shape=torch.Size(batch_size))
 
-        self.reward_spec = Unbounded(self.batch_size, device=device)
-        self.done_spec = Categorical(n=2, shape=self.batch_size, dtype=torch.bool)
+        self.reward_spec = Composite({
+            "agents": Composite({
+                "reward": Unbounded(self.batch_size + (num_agents,), device=device)
+            })
+        }, shape=self.batch_size)
+        self.done_spec = Composite({
+            "agents": Composite({
+                "done": Categorical(n=2, shape=self.batch_size + (num_agents,), dtype=torch.bool, device=device),
+                "terminated": Categorical(n=2, shape=self.batch_size + (num_agents,), dtype=torch.bool, device=device),
+                "truncated": Categorical(n=2, shape=self.batch_size + (num_agents,), dtype=torch.bool, device=device),
+            })
+        }, shape=self.batch_size)
     
     def _reset(self, params = None) -> TensorDict:
         # Reset landscape function
@@ -67,8 +77,10 @@ class PSOEnv(EnvBase):
             "personal_best_scores": self.personal_best_scores,
             "avg_pos": self.avg_pos,
             "avg_vel": self.avg_vel,
-            "reward": torch.zeros(self.batch_size, device=self.device),
-            "done": torch.zeros(self.batch_size, dtype=torch.bool, device=self.device)
+            ("agents", "reward"): torch.zeros(self.batch_size + (self.num_agents,), device=self.device),
+            ("agents", "done"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device),
+            ("agents", "terminated"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device),
+            ("agents", "truncated"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device)
         }, batch_size=self.batch_size)
 
 
@@ -99,8 +111,10 @@ class PSOEnv(EnvBase):
             "personal_best_scores": self.personal_best_scores,
             "avg_pos": self.avg_pos,
             "avg_vel": self.avg_vel,
-            "reward": (self.scores - last_scores).mean(dim=1),
-            "done": torch.zeros(self.batch_size, dtype=torch.bool, device=self.device) # change
+            ("agents", "reward"): (self.scores - last_scores), # Reward per agent
+            ("agents", "done"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device), # change
+            ("agents", "terminated"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device),
+            ("agents", "truncated"): torch.zeros(self.batch_size + (self.num_agents,), dtype=torch.bool, device=self.device)
         }, batch_size=self.batch_size)
 
     def _set_seed(self, seed) -> None:

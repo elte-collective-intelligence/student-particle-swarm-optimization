@@ -25,6 +25,8 @@ class PSOActionExtractor(nn.Module):
         self.dim = dim
 
     def forward(self, action: torch.Tensor) -> torch.Tensor:
+        if torch.isnan(action[0]).any() or torch.isnan(action[1]).any():
+            raise ValueError("Action contains NaN values")
         inertia = (action[0][..., :self.dim], action[1][..., :self.dim])
         cognitive = (action[0][..., self.dim:2*self.dim], action[1][..., self.dim:2*self.dim])
         social = (action[0][..., 2*self.dim:], action[1][..., 2*self.dim:])
