@@ -25,7 +25,7 @@ class TestPSOBasicFunctionality:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
-        env = PSOEnv(landscape=landscape, num_agents=5, device=device, batch_size=(4,), delta=1.0)
+        env = PSOEnv(landscape=landscape, num_agents=5, device=device, batch_size=(16,), delta=1.0)
         return env
     
     def test_reset(self, basic_env):
@@ -63,7 +63,7 @@ class TestPSOBasicFunctionality:
             "inertia": torch.ones((basic_env.batch_size[0], 5, 2), device=basic_env.device) * 0.5,
             "cognitive": torch.ones((basic_env.batch_size[0], 5, 2), device=basic_env.device) * 0.5,
             "social": torch.ones((basic_env.batch_size[0], 5, 2), device=basic_env.device) * 0.5
-        }, batch_size=(4,))
+        }, batch_size=(basic_env.batch_size[0],))
 
         new_obs = basic_env.step(action)
         if "next" in new_obs:
@@ -79,7 +79,7 @@ class TestPSOBasicFunctionality:
 
         # Check if reward is present and has correct shape
         assert ("agents", "reward") in new_obs
-        assert new_obs[("agents", "reward")].shape == (4, 5)
+        assert new_obs[("agents", "reward")].shape == (basic_env.batch_size[0], 5)
 
 class TestDynamicFunctions:
     """Test the dynamic functions used in the PSO environment (not used in the end)"""
@@ -170,7 +170,7 @@ class TestNeighborhoodMechanics:
         env = PSOEnv(landscape=landscape,
                     num_agents=10,
                     device=device,
-                    batch_size=(4,),
+                    batch_size=(16,),
                     delta=1.0)
         return env
     
@@ -204,8 +204,8 @@ class TestNeighborhoodMechanics:
         Uses random positions and checks that averages differ for small and large delta.
         """
         # Set positions
-        neighborhood_env.positions = torch.randn(neighborhood_env.batch_size[0], 10, 2, device=neighborhood_env.device)
-        neighborhood_env.velocities = torch.randn(neighborhood_env.batch_size[0], 10, 2, device=neighborhood_env.device)
+        neighborhood_env.positions = torch.randn(neighborhood_env.batch_size[0], neighborhood_env.num_agents, 2, device=neighborhood_env.device)
+        neighborhood_env.velocities = torch.randn(neighborhood_env.batch_size[0], neighborhood_env.num_agents, 2, device=neighborhood_env.device)
         
         # Get averages with small delta
         neighborhood_env.delta = 0.1
@@ -230,7 +230,7 @@ class TestRewardMechanics:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
-        env = PSOEnv(landscape=landscape, num_agents=10, device=device, batch_size=(4,), delta=1.0)
+        env = PSOEnv(landscape=landscape, num_agents=10, device=device, batch_size=(16,), delta=1.0)
 
         return env
     
@@ -241,18 +241,18 @@ class TestRewardMechanics:
         """
         # Set positions and scores
 
-        reward_env.positions = torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+        reward_env.positions = torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         reward_env.velocities = torch.zeros_like(reward_env.positions)
-        reward_env.scores = torch.zeros(reward_env.batch_size[0], 10, device=reward_env.device)
+        reward_env.scores = torch.zeros(reward_env.batch_size[0], reward_env.num_agents, device=reward_env.device)
         
         # Take a step that improves scores
-        new_positions = torch.ones(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+        new_positions = torch.ones(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         new_scores = reward_env.landscape(new_positions)
 
         action = TensorDict({
-            "inertia": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "cognitive": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "social": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+            "inertia": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "cognitive": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "social": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         }, batch_size=(reward_env.batch_size[0],))
         
         # Mock the position update
@@ -280,13 +280,13 @@ class TestRewardMechanics:
         if "next" in obs:
             obs = obs["next"]
 
-        assert obs["positions"].shape == (reward_env.batch_size[0], 10, 2)
-        assert obs["velocities"].shape == (reward_env.batch_size[0], 10, 2)
-        assert obs["scores"].shape == (reward_env.batch_size[0], 10)
-        assert obs["personal_best_pos"].shape == (reward_env.batch_size[0], 10, 2)
-        assert obs["personal_best_scores"].shape == (reward_env.batch_size[0], 10)
-        assert obs["avg_pos"].shape == (reward_env.batch_size[0], 10, 2)
-        assert obs["avg_vel"].shape == (reward_env.batch_size[0], 10, 2)
+        assert obs["positions"].shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
+        assert obs["velocities"].shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
+        assert obs["scores"].shape == (reward_env.batch_size[0], reward_env.num_agents)
+        assert obs["personal_best_pos"].shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
+        assert obs["personal_best_scores"].shape == (reward_env.batch_size[0], reward_env.num_agents)
+        assert obs["avg_pos"].shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
+        assert obs["avg_vel"].shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
         assert ("agents", "reward") in obs
 
     def test_step_changes_state(self, reward_env):
@@ -299,9 +299,9 @@ class TestRewardMechanics:
             obs = obs["next"]
 
         action = TensorDict({
-            "inertia": torch.ones((reward_env.batch_size[0], 10, 2), device=reward_env.device) * 0.5,
-            "cognitive": torch.ones((reward_env.batch_size[0], 10, 2), device=reward_env.device) * 0.5,
-            "social": torch.ones((reward_env.batch_size[0], 10, 2), device=reward_env.device) * 0.5
+            "inertia": torch.ones((reward_env.batch_size[0], reward_env.num_agents, 2), device=reward_env.device) * 0.5,
+            "cognitive": torch.ones((reward_env.batch_size[0], reward_env.num_agents, 2), device=reward_env.device) * 0.5,
+            "social": torch.ones((reward_env.batch_size[0], reward_env.num_agents, 2), device=reward_env.device) * 0.5
         }, batch_size=(reward_env.batch_size[0],))
 
         new_obs = reward_env.step(action)
@@ -317,8 +317,8 @@ class TestRewardMechanics:
         """
         reward_env.reset()
         avg_pos, avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
-        assert avg_pos.shape == (reward_env.batch_size[0], 10, 2)
-        assert avg_vel.shape == (reward_env.batch_size[0], 10, 2)
+        assert avg_pos.shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
+        assert avg_vel.shape == (reward_env.batch_size[0], reward_env.num_agents, 2)
 
     def test_reward_mechanics_improvement(self, reward_env):
         """
@@ -326,15 +326,15 @@ class TestRewardMechanics:
         """
         
         reward_env.reset()
-        reward_env.positions = torch.ones(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+        reward_env.positions = torch.ones(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         reward_env.velocities = torch.zeros_like(reward_env.positions)
         reward_env.scores = reward_env.landscape(reward_env.positions)
         reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
         
         action = TensorDict({
-            "inertia": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "cognitive": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "social": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+            "inertia": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "cognitive": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "social": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         }, batch_size=(reward_env.batch_size[0],))
 
         obs = reward_env.step(action)
@@ -349,14 +349,14 @@ class TestRewardMechanics:
         """
         
         reward_env.reset()
-        reward_env.positions = torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+        reward_env.positions = torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         reward_env.velocities = torch.zeros_like(reward_env.positions)
         reward_env.scores = reward_env.landscape(reward_env.positions)
         reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
         action = TensorDict({
-            "inertia": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "cognitive": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device),
-            "social": torch.zeros(reward_env.batch_size[0], 10, 2, device=reward_env.device)
+            "inertia": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "cognitive": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device),
+            "social": torch.zeros(reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device)
         }, batch_size=(reward_env.batch_size[0],))
 
         obs = reward_env.step(action)
