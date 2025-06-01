@@ -34,7 +34,7 @@ class DynamicRastrigin:
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         self.time += 1
-        A = 10 * (1 + 0.5 * torch.sin(self.time * self.frequency))  # Time-varying amplitude
+        A = 10 * (1 + 0.5 * math.sin(self.time * self.frequency))  # Time-varying amplitude
         
         return -(A * self.dim + torch.sum(x**2 - A * torch.cos(2 * math.pi * x), dim=-1))
 
