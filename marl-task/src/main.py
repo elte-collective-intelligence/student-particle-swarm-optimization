@@ -12,6 +12,8 @@ from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 from envs import PSOEnv
 from utils import LandscapeWrapper, PSOActionExtractor, PSOObservationWrapper
@@ -99,7 +101,15 @@ def train(collector, replay_buffer, loss_module, optim, num_epochs, max_grad_nor
     pbar.close()
     return losses, rewards
 
-def main():
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(cfg: DictConfig):
+    print(OmegaConf.to_yaml(cfg))
+
+    # Access config
+    dim = cfg.env.landscape_dim
+    hidden = cfg.model.hidden_sizes
+    print(f"Dim: {dim}, Hidden: {hidden}")
+
     landscape_dim = 2
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
