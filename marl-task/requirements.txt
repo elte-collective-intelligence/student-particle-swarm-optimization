@@ -7,3 +7,5 @@ matplotlib
 imageio
 tqdm
 pytest
+hydra-core
+omegaconf
