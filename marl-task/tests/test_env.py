@@ -11,13 +11,17 @@ sys.path.append(str(root_dir / "src"))
 
 from envs.env import PSOEnv, get_neighborhood_avg
 from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHolder
-from utils import LandscapeWrapper
+from utils import LandscapeWrapper, PSOObservationWrapper, PSOActionExtractor
 
 class TestPSOBasicFunctionality:
     """Test basic PSO environment functionality"""
     
     @pytest.fixture
     def basic_env(self):
+        """
+        Fixture to create a basic PSOEnv environment with a simple quadratic landscape.
+        Returns an environment with 5 agents, batch size 4, and 2D search space.
+        """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
@@ -25,7 +29,10 @@ class TestPSOBasicFunctionality:
         return env
     
     def test_reset(self, basic_env):
-        """Test environment reset functionality"""
+        """
+        Test environment reset functionality.
+        Ensures that all expected keys are present in the observation and that their shapes are correct.
+        """
         obs = basic_env.reset()
 
         if "next" in obs:
@@ -42,7 +49,11 @@ class TestPSOBasicFunctionality:
         assert obs["scores"].shape[-2:] == (basic_env.batch_size[0], basic_env.num_agents)
 
     def test_step(self, basic_env):
-        """Test environment step functionality"""
+        """
+        Test environment step functionality.
+        Checks that positions and velocities change after a step and that all expected keys are present in the new observation.
+        Also checks that the reward key exists and has the correct shape.
+        """
         obs = basic_env.reset()
         
         if "next" in obs:
@@ -71,14 +82,17 @@ class TestPSOBasicFunctionality:
         assert new_obs[("agents", "reward")].shape == (4, 5)
 
 class TestDynamicFunctions:
-    """Test the dynamic functions used in the PSO environment"""
+    """Test the dynamic functions used in the PSO environment (not used in the end)"""
     
     @pytest.fixture(params=[2, 5, 10])
     def dim(self, request):
         return request.param
     
     def test_dynamic_sphere(self, dim):
-        """Test the DynamicSphere function"""
+        """
+        Test the DynamicSphere function.
+        Checks initial evaluation, time-dependent changes, and reset behavior.
+        """
         func = DynamicSphere(dim=dim)
         x = torch.randn(10, dim)
         
@@ -97,7 +111,10 @@ class TestDynamicFunctions:
         assert torch.all(func.optimum == 0)
     
     def test_dynamic_rastrigin(self, dim):
-        """Test the DynamicRastrigin function"""
+        """
+        Test the DynamicRastrigin function.
+        Checks initial evaluation, time-dependent amplitude changes, and reset behavior.
+        """
         func = DynamicRastrigin(dim=dim)
         x = torch.rand(10, dim) * 5.24 - 2.6  # Rastrigin range
         
@@ -115,7 +132,10 @@ class TestDynamicFunctions:
         assert func.time == 0
     
     def test_dynamic_eggholder(self):
-        """Test the DynamicEggHolder function (only works in 2D)"""
+        """
+        Test the DynamicEggHolder function.
+        Checks initial evaluation, time-dependent rotation, and reset behavior.
+        """
         func = DynamicEggHolder(dim=2)
         x = torch.rand(10, 2) * 512 - 256  # Eggholder range
         
@@ -137,6 +157,10 @@ class TestNeighborhoodMechanics:
     
     @pytest.fixture
     def neighborhood_env(self):
+        """
+        Fixture to create a PSOEnv environment for neighborhood tests.
+        Uses a quadratic landscape and 10 agents.
+        """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         def quadratic(x):
@@ -151,7 +175,10 @@ class TestNeighborhoodMechanics:
         return env
     
     def test_neighborhood_calculation(self, neighborhood_env):
-        """Test that neighborhood averages are calculated correctly"""
+        """
+        Test checks if neighborhood averages are calculated correctly.
+        Sets specific positions and checks the average for a known agent.
+        """
         # Set specific positions for testing
         neighborhood_env.positions = torch.tensor(
             [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0], 
@@ -172,7 +199,10 @@ class TestNeighborhoodMechanics:
         assert torch.allclose(avg_pos[0, 0], expected_avg_pos, atol=1e-5)
     
     def test_delta_effect(self, neighborhood_env):
-        """Test that changing delta affects neighborhood averages"""
+        """
+        Test checks if changing delta affects neighborhood averages.
+        Uses random positions and checks that averages differ for small and large delta.
+        """
         # Set positions
         neighborhood_env.positions = torch.randn(32, 10, 2, device=neighborhood_env.device)
         neighborhood_env.velocities = torch.randn(32, 10, 2, device=neighborhood_env.device)
@@ -193,6 +223,10 @@ class TestRewardMechanics:
     
     @pytest.fixture
     def reward_env(self):
+        """
+        Fixture to create a PSOEnv environment for reward tests.
+        Uses a quadratic landscape and 10 agents.
+        """
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
@@ -201,7 +235,10 @@ class TestRewardMechanics:
         return env
     
     def test_reward_calculation(self, reward_env):
-        """Test that rewards are calculated correctly"""
+        """
+        Test checks if rewards are calculated correctly.
+        Sets positions and scores, performs a step, and checks reward shape.
+        """
         # Set positions and scores
 
         reward_env.positions = torch.zeros(32, 10, 2, device=reward_env.device)
@@ -234,7 +271,9 @@ class TestRewardMechanics:
         assert obs[("agents", "reward")].shape == (32, 10)
 
     def test_reset_consistency(self, reward_env):
-        """Test that reset returns consistent shapes and values."""
+        """
+        Test checks if reset returns consistent shapes and values for all observation keys.
+        """
 
         obs = reward_env.reset()
         
@@ -251,8 +290,10 @@ class TestRewardMechanics:
         assert ("agents", "reward") in obs
 
     def test_step_changes_state(self, reward_env):
-        """Test that step changes positions and velocities."""
-        
+        """
+        Test checks if changes positions and velocities.
+        Checks that the state is updated after a step.
+        """
         obs = reward_env.reset()
         if "next" in obs:
             obs = obs["next"]
@@ -271,15 +312,18 @@ class TestRewardMechanics:
         assert not torch.allclose(obs["velocities"], new_obs["velocities"])
 
     def test_neighborhood_avg_method(self, reward_env):
-        """Test that get_neighborhood_avg returns correct shapes."""
-        
+        """
+        Test checks if get_neighborhood_avg returns correct shapes for avg_pos and avg_vel.
+        """
         reward_env.reset()
         avg_pos, avg_vel = get_neighborhood_avg(reward_env.positions, reward_env.velocities, reward_env.delta)
         assert avg_pos.shape == (32, 10, 2)
         assert avg_vel.shape == (32, 10, 2)
 
     def test_reward_mechanics_improvement(self, reward_env):
-        """Test reward is positive when scores improve."""
+        """
+        Test checks if reward is zero when scores do not improve (positions are set to ones, so no improvement).
+        """
         
         reward_env.reset()
         reward_env.positions = torch.ones(32, 10, 2, device=reward_env.device)
@@ -300,7 +344,9 @@ class TestRewardMechanics:
         assert torch.all(obs[("agents", "reward")] == 0)
 
     def test_reward_mechanics_no_improvement(self, reward_env):
-        """Test reward is zero when no improvement."""
+        """
+        Test checks if reward is zero when scores do not improve (positions are set to ones, so no improvement).
+        """
         
         reward_env.reset()
         reward_env.positions = torch.zeros(32, 10, 2, device=reward_env.device)
@@ -318,3 +364,70 @@ class TestRewardMechanics:
             obs = obs["next"]
 
         assert torch.all(obs[("agents", "reward")] == 0)
+
+class TestUtilsAndWrappers:
+    """Test utility functions and wrappers used in PSO"""
+
+    def test_landscape_wrapper_call_and_dim(self):
+        """
+        Test checks if LandscapeWrapper correctly wraps a function and exposes the dim attribute.
+        """
+        f = lambda x: torch.sum(x**2, dim=-1)
+        wrapper = LandscapeWrapper(f, dim=3)
+        x = torch.tensor([[1.0, 2.0, 3.0]])
+        result = wrapper(x)
+
+        assert torch.allclose(result, torch.tensor([14.0]))
+        assert wrapper.dim == 3
+
+    def test_landscape_wrapper_reset(self):
+        """
+        Test checks that LandscapeWrapper.reset() does not raise an error.
+        """
+        wrapper = LandscapeWrapper(lambda x: x, dim=2)
+        wrapper.reset()
+
+    def test_pso_observation_wrapper_concat(self):
+        """
+        Test checks if PSOObservationWrapper concatenates avg_pos and avg_vel along the last dimension.
+        """
+        obs_wrapper = PSOObservationWrapper()
+        avg_pos = torch.ones(2, 3, 4)
+        avg_vel = torch.zeros(2, 3, 4)
+        out = obs_wrapper(avg_pos, avg_vel)
+
+        assert out.shape == (2, 3, 8)
+        assert torch.all(out[..., :4] == 1)
+        assert torch.all(out[..., 4:] == 0)
+
+    def test_pso_action_extractor_forward(self):
+        """
+        Test checks if PSOActionExtractor correctly extracts inertia, cognitive, and social components from the action tensor.
+        Checks that the output shapes and values are as expected.
+        """
+        dim = 2
+        extractor = PSOActionExtractor(dim)
+
+        a0 = torch.tensor([[1.0, 2.0, 3.0, 4.0]])
+        a1 = torch.tensor([[5.0, 6.0, 7.0, 8.0]])
+        action = (a0, a1)
+        inertia, inertia2, cognitive, cognitive2, social, social2 = extractor(action)
+
+        assert inertia.shape == (1, dim)
+        assert cognitive.shape == (1, dim)
+        assert social.shape == (1, 0)
+        assert torch.all(inertia == torch.tensor([[1.0, 2.0]]))
+        assert torch.all(cognitive == torch.tensor([[3.0, 4.0]]))
+
+    def test_pso_action_extractor_nan_raises(self):
+        """
+        Test checks that PSOActionExtractor raises a ValueError if the action contains NaN values.
+        """
+        dim = 2
+        extractor = PSOActionExtractor(dim)
+        a0 = torch.tensor([[float('nan'), 2.0, 3.0, 4.0]])
+        a1 = torch.tensor([[5.0, 6.0, 7.0, 8.0]])
+        action = (a0, a1)
+
+        with pytest.raises(ValueError):
+            extractor(action)
