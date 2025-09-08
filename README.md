@@ -1,4 +1,4 @@
-# Formation: Multi-Agent Reinforcement Learning (TorchRL)
+# Particle Swarm Optimization: Multi-Agent Reinforcement Learning (TorchRL)
 
 [![CI](https://github.com/elte-collective-intelligence/student-particle-swarm-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/elte-collective-intelligence/student-particle-swarm-optimization/actions/workflows/ci.yml)
 [![Docker](https://github.com/elte-collective-intelligence/student-particle-swarm-optimization/actions/workflows/docker.yml/badge.svg)](https://github.com/elte-collective-intelligence/student-particle-swarm-optimization/actions/workflows/docker.yml)
