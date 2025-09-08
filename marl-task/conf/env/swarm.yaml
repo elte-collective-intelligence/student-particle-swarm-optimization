@@ -1,4 +1,0 @@
-name: swarm
-landscape_dim: 2
-num_agents: 10
-batch_size: 16
