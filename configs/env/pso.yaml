@@ -1,0 +1,5 @@
+num_agents: 6
+dim: 2
+batch_size: 4
+max_steps: 50
+dynamic: true

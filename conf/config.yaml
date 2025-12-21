@@ -1,0 +1,5 @@
+defaults:
+  - base
+
+# Main configuration file
+# This includes base.yaml which includes model/ppo and env/swarm

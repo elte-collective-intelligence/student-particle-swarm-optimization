@@ -1,9 +1,23 @@
-FROM python:3.12.7-slim
+FROM python:3.11-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt 
+# Copy requirements first for caching
+COPY requirements.txt .
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the entire project
 COPY . .
 
-CMD ["python", "src/main.py"]
+# ✅ IMPORTANT: Tell Python where "src" is
+ENV PYTHONPATH=/app
+
+# ✅ Run PPO training
+CMD ["python", "-m", "src.ppo_main"]

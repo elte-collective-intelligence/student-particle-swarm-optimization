@@ -1,8 +1,17 @@
+# conf/base.yaml
 defaults:
-  - model: ppo
-  - env: swarm
+  - _self_
 
-frames_per_batch: 4096
-minibatch_size: 256
-clip_epsilon: 0.2
-entropy_coef: 0.01
+env:
+  num_agents: 6
+  dim: 2
+  batch_size: 4
+  max_steps: 50
+
+train:
+  episodes: 50
+  steps_per_episode: 20
+  lr_actor: 1e-3
+  lr_critic: 1e-3
+
+device: cpu
