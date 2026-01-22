@@ -31,7 +31,6 @@ from envs import PSOEnv
 from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHolder
 from utils import LandscapeWrapper, PSOActionExtractor, PSOObservationWrapper
 
-
 # =============================================================================
 # Landscape Functions
 # =============================================================================
@@ -270,7 +269,9 @@ def train(
 
                 # Create distributions
                 inertia_dist = torch.distributions.Normal(inertia_loc, inertia_scale)
-                cognitive_dist = torch.distributions.Normal(cognitive_loc, cognitive_scale)
+                cognitive_dist = torch.distributions.Normal(
+                    cognitive_loc, cognitive_scale
+                )
                 social_dist = torch.distributions.Normal(social_loc, social_scale)
 
                 # Compute log probs of old actions under new policy
@@ -291,14 +292,19 @@ def train(
                 values = subdata_new["state_value"].squeeze(-1)
 
                 # Normalize advantages (per minibatch)
-                adv_normalized = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+                adv_normalized = (advantages - advantages.mean()) / (
+                    advantages.std() + 1e-8
+                )
 
                 # Compute PPO ratio
                 ratio = torch.exp(new_log_prob - old_log_prob.detach())
 
                 # Clipped surrogate objective (mean over agents too)
                 surr1 = ratio * adv_normalized
-                surr2 = torch.clamp(ratio, 1 - clip_epsilon, 1 + clip_epsilon) * adv_normalized
+                surr2 = (
+                    torch.clamp(ratio, 1 - clip_epsilon, 1 + clip_epsilon)
+                    * adv_normalized
+                )
                 policy_loss = -torch.min(surr1, surr2).mean()
 
                 # Value loss (with optional clipping)

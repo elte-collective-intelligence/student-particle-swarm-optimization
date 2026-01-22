@@ -623,9 +623,12 @@ class TestUtilsAndWrappers:
         a1 = torch.tensor([[0.5, 0.5, 0.5, 0.5, 0.5, 0.5]])  # scale
         action = (a0, a1)
         (
-            inertia_loc, inertia_scale,
-            cognitive_loc, cognitive_scale,
-            social_loc, social_scale
+            inertia_loc,
+            inertia_scale,
+            cognitive_loc,
+            cognitive_scale,
+            social_loc,
+            social_scale,
         ) = extractor(action)
 
         # Check shapes
@@ -654,7 +657,9 @@ class TestUtilsAndWrappers:
         a0 = torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]])
         a1 = torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]])
         action = (a0, a1)
-        inertia_loc, inertia_scale, cog_loc, cog_scale, soc_loc, soc_scale = extractor(action)
+        inertia_loc, inertia_scale, cog_loc, cog_scale, soc_loc, soc_scale = extractor(
+            action
+        )
 
         assert torch.allclose(inertia_loc, torch.tensor([[1.0, 2.0]]))
         assert torch.allclose(cog_loc, torch.tensor([[3.0, 4.0]]))

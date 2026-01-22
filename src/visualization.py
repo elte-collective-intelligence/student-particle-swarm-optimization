@@ -9,6 +9,7 @@ import os
 from typing import List, Callable
 
 import matplotlib
+
 matplotlib.use("Agg")  # Use non-interactive backend  # noqa: E402
 
 import matplotlib.pyplot as plt  # noqa: E402
@@ -383,7 +384,9 @@ class SwarmVisualizer:
 
         return plot_path
 
-    def save_all_visualizations(self, best_scores: List = None, mean_scores: List = None):
+    def save_all_visualizations(
+        self, best_scores: List = None, mean_scores: List = None
+    ):
         """
         Generate and save all available visualizations.
 

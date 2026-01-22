@@ -28,7 +28,6 @@ from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHo
 from utils import LandscapeWrapper, PSOActionExtractor, PSOObservationWrapper
 from visualization import SwarmVisualizer
 
-
 # =============================================================================
 # Landscape Functions
 # =============================================================================
@@ -398,7 +397,9 @@ def main(cfg: DictConfig):
     vis_config = OmegaConf.to_container(cfg.visualization, resolve=True)
     # Fix visualization save_dir path
     if "save_dir" in vis_config:
-        vis_config["save_dir"] = os.path.join(get_original_cwd(), vis_config["save_dir"])
+        vis_config["save_dir"] = os.path.join(
+            get_original_cwd(), vis_config["save_dir"]
+        )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"\nDevice: {device}")
