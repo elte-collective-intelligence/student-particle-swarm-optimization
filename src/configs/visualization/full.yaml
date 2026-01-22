@@ -1,0 +1,7 @@
+# Full visualization configuration - animated swarm visualization
+visualize_swarm: true
+visualize_landscape: true
+save_gif: true
+save_dir: 'src/outputs/vis/'
+fps: 10
+dpi: 150

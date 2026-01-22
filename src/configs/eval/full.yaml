@@ -1,0 +1,5 @@
+# Comprehensive evaluation with multiple functions
+num_eval_episodes: 20
+max_steps: 200
+save_metrics: true
+compare_random: true

@@ -1,0 +1,5 @@
+# Quick smoke test evaluation
+num_eval_episodes: 2
+max_steps: 20
+save_metrics: false
+compare_random: false

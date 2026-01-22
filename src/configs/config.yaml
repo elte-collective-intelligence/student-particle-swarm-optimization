@@ -1,0 +1,29 @@
+defaults:
+  - model: ppo
+  - env: swarm
+  - _self_
+
+# Hydra configuration
+hydra:
+  run:
+    dir: src/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: src/outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+# Training hyperparameters
+frames_per_batch: 4096
+minibatch_size: 256
+n_iters: 5
+num_epochs: 4
+max_grad_norm: 0.5
+
+# PPO hyperparameters
+clip_epsilon: 0.2
+entropy_coef: 0.01
+gamma: 0.99
+lmbda: 0.9
+
+# Output settings
+output_dir: src/outputs
+save_model: true
+save_plot: true

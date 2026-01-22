@@ -1,0 +1,39 @@
+# Evaluation with full visualization (2D and 3D animations)
+# Usage: python src/eval.py --config-path configs/experiments --config-name eval_vis
+# Hydra configuration
+hydra:
+  run:
+    dir: src/outputs/eval_vis/${now:%Y-%m-%d}/${now:%H-%M-%S}
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0001
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 8
+  batch_size: 1
+  delta: 1.0
+  landscape_function: sphere
+
+eval:
+  num_eval_episodes: 5
+  max_steps: 50
+  save_metrics: true
+  compare_random: true
+
+visualization:
+  visualize_swarm: true
+  visualize_landscape: true
+  save_gif: true
+  save_dir: src/outputs/eval_vis/vis/
+  fps: 10
+  dpi: 150
+
+model_path: src/outputs/full_train/best_model.pt
+output_dir: src/outputs/eval_vis

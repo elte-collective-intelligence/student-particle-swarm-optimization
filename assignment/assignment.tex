@@ -1,0 +1,461 @@
+\documentclass[11pt,a4paper]{scrartcl}
+
+% - Base packages -
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.8cm, right=2.8cm, headheight=36.5pt, footskip=1.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage[automark,headsepline]{scrlayer-scrpage}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{tikz}  % For enhanced graphics and borders
+\usetikzlibrary{shadows,patterns}
+
+% Professional monospace font setup
+\usepackage{inconsolata}  % Clean, crisp monospace font
+\usepackage[scaled=1.0]{helvet}  % For sans-serif headers
+\renewcommand{\familydefault}{\ttdefault}  % Use monospace as main font
+\usepackage[libertine]{newtxmath}  % Math font that pairs well with monospace
+
+% Professional grayscale color scheme
+\definecolor{titlecolor}{RGB}{20, 20, 20}
+\definecolor{sectioncolor}{RGB}{40, 40, 40}
+\definecolor{accentcolor}{RGB}{60, 60, 60}
+\definecolor{rulecolor}{RGB}{100, 100, 100}
+\definecolor{lightgray}{RGB}{245, 245, 245}
+\definecolor{codebg}{RGB}{250, 250, 250}
+\definecolor{codehighlight}{RGB}{240, 240, 245}
+\definecolor{shadowcolor}{RGB}{220, 220, 220}
+
+% Custom command for inline code paths with subtle highlight
+\newcommand{\codepath}[1]{\colorbox{codehighlight}{\texttt{#1}}}
+
+% Section divider command
+\newcommand{\sectiondivider}{%
+  \vspace{0.2em}%
+  \noindent\textcolor{rulecolor}{\rule{0.3\textwidth}{0.4pt}}%
+  \vspace{0.3em}%
+}
+
+% Hyperref setup - understated
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=accentcolor,
+    citecolor=black,
+    pdfborder={0 0 0}
+}
+
+% Code listing setup - minimal and crisp
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=none,
+    backgroundcolor=\color{codebg},
+    xleftmargin=1em,
+    framexleftmargin=0em,
+    columns=fullflexible,
+    showstringspaces=false,
+    keywordstyle=\bfseries,
+    commentstyle=\color{accentcolor}\itshape,
+    stringstyle=\itshape,
+    numbers=left,
+    numberstyle=\tiny\color{rulecolor},
+    numbersep=1em
+}
+
+% Professional tcolorbox styles with shadows
+\tcbuselibrary{listings,breakable,skins}
+
+\tcbset{
+    modern/.style={
+        enhanced,
+        sharp corners,
+        colback=codebg,
+        colframe=rulecolor,
+        boxrule=0.5pt,
+        arc=0mm,
+        top=8pt,
+        bottom=8pt,
+        left=12pt,
+        right=12pt,
+        breakable,
+        before skip=10pt,
+        after skip=10pt,
+        drop fuzzy shadow=shadowcolor
+    }
+}
+
+% Section formatting - minimal and professional with accent bars
+\setkomafont{section}{\ttfamily\LARGE\bfseries\color{sectioncolor}}
+\setkomafont{subsection}{\ttfamily\Large\bfseries\color{sectioncolor}}
+\setkomafont{subsubsection}{\ttfamily\large\bfseries\color{accentcolor}}
+
+% Add subtle bars before sections
+\RedeclareSectionCommand[
+  beforeskip=1.0\baselineskip,
+  afterskip=.5\baselineskip
+]{section}
+
+\RedeclareSectionCommand[
+  beforeskip=0.8\baselineskip,
+  afterskip=.3\baselineskip
+]{subsection}
+
+% List spacing with improved bullets
+\setlist{nosep, leftmargin=1.8em}
+\setlist[itemize,1]{label={\textcolor{rulecolor}{\small\textbullet}}}
+\setlist[enumerate,1]{label={\textcolor{sectioncolor}{\arabic*.}}}
+
+% Paragraph spacing - compact layout
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+\setlength{\footheight}{25pt}
+
+\clearpairofpagestyles
+
+% Enhanced header with subtle line
+\chead{%
+  \raisebox{-2pt}{\includegraphics[height=1.1cm]{logo.png}}
+}
+\cfoot{%
+  \vspace{-0.5em}%
+  \textcolor{rulecolor}{\rule{4cm}{0.3pt}}\\[0.3em]%
+  \ttfamily\small\pagemark%
+}
+\renewcommand*{\titlepagestyle}{scrheadings}
+
+\addtokomafont{title}{\vspace*{-2em}}
+\addtokomafont{author}{\vspace*{-0.5em}}
+\addtokomafont{date}{\vspace*{-0.5em}}
+
+% - Title and authors -
+\title{\ttfamily\Huge \textbf{Particle Swarm Optimization}\\[0.3em]
+\LARGE Learning Swarm Intelligence with RL}
+
+\author{
+\ttfamily Collective Intelligence - Spring 2026
+}
+\date{\ttfamily Teams of 2-3 students | 6-8 weeks}
+
+\begin{document}
+\maketitle
+
+\vspace{-3em}
+
+\begin{center}
+    \includegraphics[width=0.6\textwidth]{pso.png}
+\end{center}
+
+% =========================
+% OVERVIEW
+% =========================
+\section*{Overview}
+
+This project explores \textbf{learned particle swarm optimization (PSO)} using multi-agent reinforcement learning. Instead of hand-tuning hyperparameters like inertia weight $\omega$, cognitive coefficient $c_1$, and social coefficient $c_2$, agents learn to dynamically adjust these parameters based on the current optimization landscape.
+
+Your task is to extend the base implementation with \textbf{one of three research directions} below. Each task involves implementing new functionality, running rigorous experiments, and documenting results with visualizations and analysis.
+
+\begin{tcolorbox}[modern, title=\ttfamily\textbf{What is already provided}]
+\begin{itemize}[leftmargin=1.2em, itemsep=4pt]
+    \item \codepath{src/envs/env.py} --- TorchRL-based multi-agent PSO environment
+    \item \codepath{src/envs/dynamic\_functions.py} --- Static and dynamic benchmark functions (Sphere, Rastrigin, Eggholder, etc.)
+    \item \codepath{src/main.py} --- Hydra-based training loop with PPO
+    \item \codepath{src/eval.py} --- Evaluation with 2D/3D visualization and GIF generation
+    \item \codepath{src/visualizer.py} --- SwarmVisualizer class for particle animation
+    \item Docker containerization for reproducibility
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[modern, title=\ttfamily\textbf{Teams \& Timeline}]
+\begin{itemize}[leftmargin=1.2em, itemsep=4pt]
+    \item \textbf{Teams}: 2-3 students per team
+    \item \textbf{Duration}: 6-8 weeks (start early!)
+    \item \textbf{Checkpoint 1} (Week 3): Implementation outline + preliminary results
+    \item \textbf{Checkpoint 2} (Week 6): Working code + initial experiments
+    \item \textbf{Final} (Week 8): Full submission + presentation
+\end{itemize}
+\end{tcolorbox}
+
+\sectiondivider
+
+% =========================
+% TASK OPTIONS
+% =========================
+\section*{Task Options}
+
+Each team selects \textbf{one task}. All tasks have comparable scope and grading weight.
+
+\subsection*{Task 1: Communication Topologies \& Information Flow}
+
+\textbf{Research Question}: \textit{How do different swarm communication topologies (global best, local best, dynamic neighborhoods) affect convergence and diversity in learned PSO?}
+
+\subsubsection*{Hypothesis}
+Restricting information flow through local topologies (ring, von Neumann, dynamic k-nearest) will maintain diversity longer, improving performance on multimodal landscapes, while global best topology converges faster on unimodal functions.
+
+\subsubsection*{Implementation Requirements}
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Topology System} (\codepath{src/envs/topology.py} --- new file):
+    \begin{itemize}
+        \item Implement: Global Best (gBest), Local Best (lBest) with ring topology
+        \item Implement: Von Neumann (grid) neighborhood, k-Nearest dynamic neighbors
+        \item Topology abstraction: \texttt{Topology.get\_neighbors(particle\_id)} interface
+        \item Allow topology changes during optimization (learned or scheduled)
+    \end{itemize}
+    
+    \item \textbf{Environment Extension} (\codepath{src/envs/env.py} modification):
+    \begin{itemize}
+        \item Add topology-aware observation: include neighbor personal bests
+        \item Modify reward to use neighborhood best instead of global best
+        \item Config-driven topology selection via Hydra
+    \end{itemize}
+    
+    \item \textbf{Diversity Metrics} (\codepath{src/eval/diversity.py} --- new file):
+    \begin{itemize}
+        \item Position diversity: mean pairwise distance, convex hull volume
+        \item Velocity diversity: velocity alignment coefficient
+        \item Information spread: how fast does best solution propagate?
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection*{Technical Guidance}
+\begin{itemize}
+    \item Use adjacency matrices for efficient neighbor queries
+    \item Dynamic k-nearest: recompute neighbors every N steps (configurable)
+    \item Configs: \codepath{src/configs/topology/} with \texttt{global.yaml}, \texttt{ring.yaml}, \texttt{knearest.yaml}
+    \item Consider graph neural network observations for topology-aware policies
+\end{itemize}
+
+\subsubsection*{Expected Deliverables}
+\begin{itemize}
+    \item Working topology system with 4+ topology types
+    \item Diversity metrics integrated into evaluation pipeline
+    \item Comparison: 4 topologies $\times$ 3 landscapes (unimodal, multimodal, dynamic) $\times$ 5 seeds
+    \item 4-6 plots: convergence curves, diversity over time, final fitness distributions, topology comparison heatmaps
+    \item 2-3 GIFs: side-by-side topology comparison on same function
+    \item Analysis: when does local topology help? Trade-offs between exploration and exploitation?
+\end{itemize}
+
+\sectiondivider
+
+\subsection*{Task 2: Curriculum Learning \& Adaptive Difficulty}
+
+\textbf{Research Question}: \textit{Can progressively increasing optimization difficulty (dimensionality, function complexity, landscape dynamics) improve sample efficiency and generalization?}
+
+\subsubsection*{Hypothesis}
+Starting training on simpler problems (low dimensions, unimodal functions) and gradually introducing complexity will produce policies that generalize better to hard problems compared to training directly on difficult tasks.
+
+\subsubsection*{Implementation Requirements}
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Curriculum Manager} (\codepath{src/training/curriculum.py} --- new file):
+    \begin{itemize}
+        \item Dimension curriculum: train 2D $\rightarrow$ 5D $\rightarrow$ 10D $\rightarrow$ 30D
+        \item Function curriculum: Sphere $\rightarrow$ Rosenbrock $\rightarrow$ Rastrigin $\rightarrow$ Eggholder
+        \item Dynamics curriculum: static $\rightarrow$ slow dynamics $\rightarrow$ fast dynamics
+        \item Progression criteria: performance threshold, training steps, or learned
+    \end{itemize}
+    
+    \item \textbf{Generalization Testing} (\codepath{src/eval/generalization.py} --- new file):
+    \begin{itemize}
+        \item Zero-shot transfer: evaluate on unseen dimensions/functions
+        \item Performance gap: curriculum-trained vs direct-trained on hard problems
+        \item Learning curves: sample efficiency comparison
+    \end{itemize}
+    
+    \item \textbf{Adaptive Difficulty} (bonus extension):
+    \begin{itemize}
+        \item Automatic difficulty adjustment based on agent performance
+        \item Multi-armed bandit for curriculum stage selection
+        \item Self-paced learning: agents request harder problems
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection*{Technical Guidance}
+\begin{itemize}
+    \item Dimension-agnostic policy: use attention or recurrent networks for variable input sizes
+    \item Function encoding: one-hot, learned embeddings, or meta-learning
+    \item Configs: \codepath{src/configs/curriculum/} with \texttt{dimension.yaml}, \texttt{function.yaml}, \texttt{combined.yaml}
+    \item Consider domain randomization as baseline comparison
+\end{itemize}
+
+\subsubsection*{Expected Deliverables}
+\begin{itemize}
+    \item Working curriculum system with 3+ curriculum types
+    \item Generalization evaluation across unseen problems
+    \item Comparison: curriculum vs direct training on final tasks (5 seeds each)
+    \item 4-6 plots: learning curves, generalization matrices, curriculum progression, sample efficiency
+    \item 2-3 GIFs: policy behavior on easy vs hard problems
+    \item Analysis: optimal curriculum ordering? When does curriculum help/hurt? Transfer limits?
+\end{itemize}
+
+\sectiondivider
+
+\subsection*{Task 3: Diversity-Preserving Reward Shaping}
+
+\textbf{Research Question}: \textit{Can auxiliary rewards for swarm diversity prevent premature convergence and improve global optimization on deceptive landscapes?}
+
+\subsubsection*{Hypothesis}
+Adding intrinsic motivation rewards for maintaining swarm diversity (position spread, velocity diversity, exploration bonuses) will improve performance on multimodal and deceptive functions where standard PSO suffers from premature convergence.
+
+\subsubsection*{Implementation Requirements}
+\begin{enumerate}[leftmargin=1.4em]
+    \item \textbf{Diversity Rewards} (\codepath{src/envs/diversity\_reward.py} --- new file):
+    \begin{itemize}
+        \item Position entropy: reward for spread in search space
+        \item Novelty bonus: reward for visiting unexplored regions (archive-based)
+        \item Velocity alignment penalty: discourage all particles moving same direction
+        \item Scalarization: $r = \alpha \cdot r_{\text{fitness}} + (1-\alpha) \cdot r_{\text{diversity}}$
+    \end{itemize}
+    
+    \item \textbf{Adaptive Weighting}:
+    \begin{itemize}
+        \item Schedule: high diversity weight early, decay over optimization
+        \item Performance-based: increase diversity when stuck, decrease when improving
+        \item Learned: let the policy learn to balance via multi-objective heads
+    \end{itemize}
+    
+    \item \textbf{Premature Convergence Detection} (\codepath{src/eval/convergence\_analysis.py}):
+    \begin{itemize}
+        \item Detect: when does swarm collapse? Distance to centroid metrics
+        \item Compare: baseline vs diversity-rewarded policies
+        \item Measure: escape rate from local optima
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection*{Technical Guidance}
+\begin{itemize}
+    \item Position entropy: $H = -\sum_i p_i \log p_i$ over discretized search space bins
+    \item Novelty archive: store visited positions, reward distance to k-nearest archive points
+    \item Configs: \codepath{src/configs/reward/} with \texttt{baseline.yaml}, \texttt{diversity.yaml}, \texttt{adaptive.yaml}
+    \item Test on deceptive functions: Rastrigin, Schwefel, multimodal custom landscapes
+\end{itemize}
+
+\subsubsection*{Expected Deliverables}
+\begin{itemize}
+    \item 3+ diversity reward mechanisms with configurable weights
+    \item Adaptive weighting system (at least 2 strategies)
+    \item Comparison: baseline vs diversity rewards on 4+ functions (5 seeds each)
+    \item 4-6 plots: diversity over time, convergence detection, $\alpha$ sensitivity, local optima escape rates
+    \item 2-3 GIFs: baseline (premature convergence) vs diversity-rewarded (sustained exploration)
+    \item Analysis: optimal diversity-fitness trade-off? Function-dependent tuning? Failure modes?
+\end{itemize}
+
+\sectiondivider
+
+\section*{Shared Requirements (All Tasks)}
+
+All teams must follow these common guidelines to ensure quality and reproducibility.
+
+\begin{tcolorbox}[modern]
+\textbf{Code Quality}
+\begin{itemize}
+    \item Follow existing code structure (TorchRL patterns, Hydra configs)
+    \item Update relevant folder READMEs documenting new modules
+    \item Add 2-3 unit tests for core functionality
+    \item Hydra configs for all experiments
+\end{itemize}
+
+\textbf{Experiments}
+\begin{itemize}
+    \item Run on both \textbf{low-dimensional} (2D-5D) and \textbf{high-dimensional} (10D-30D) problems
+    \item Test on multiple function types: unimodal (Sphere), multimodal (Rastrigin), dynamic
+    \item Use fixed seeds for reproducibility (report all seeds in README)
+    \item Minimum 5 seeds per experimental condition
+\end{itemize}
+
+\textbf{Documentation}
+\begin{itemize}
+    \item Update root \texttt{README.md} with new ``Semester Contribution'' section:
+    \begin{itemize}
+        \item Research question \& hypothesis
+        \item Implementation summary (what was added/modified)
+        \item Key results (embed 2-3 key plots/GIFs)
+        \item Conclusions \& limitations
+        \item Future work
+    \end{itemize}
+    \item Keep it concise (500-800 words max)
+\end{itemize}
+\end{tcolorbox}
+
+% =========================
+% GRADING RUBRIC
+% =========================
+\section*{Grading Rubric}
+
+\begin{tcolorbox}[modern, title=\ttfamily\textbf{Total: 100 points}]
+Each task has the same grading structure. All requirements must use Hydra configs and be reproducible.
+\end{tcolorbox}
+
+\vspace{0.5em}
+
+\subsection*{Implementation (40 pts)}
+\begin{itemize}
+    \item Core functionality working (new modules/classes follow codebase conventions) \dotfill \textbf{20 pts}
+    \item Integration with existing system (configs, training loops, evaluation) \dotfill \textbf{10 pts}
+    \item Code quality (documentation, tests, readable) \dotfill \textbf{10 pts}
+\end{itemize}
+
+\subsection*{Experiments (30 pts)}
+\begin{itemize}
+    \item Rigorous experimental design (controls, baselines, multiple seeds) \dotfill \textbf{10 pts}
+    \item Sufficient scale (low-D + high-D, 5+ conditions) \dotfill \textbf{10 pts}
+    \item Reproducibility (fixed seeds, configs, clear instructions) \dotfill \textbf{10 pts}
+\end{itemize}
+
+\subsection*{Results \& Analysis (20 pts)}
+\begin{itemize}
+    \item Clear visualizations (4-6 plots + 2-3 GIFs with captions) \dotfill \textbf{10 pts}
+    \item Insightful analysis (hypothesis testing, failure cases, limitations) \dotfill \textbf{10 pts}
+\end{itemize}
+
+\subsection*{Documentation (10 pts)}
+\begin{itemize}
+    \item Semester Contribution in root README (clear, well-structured) \dotfill \textbf{6 pts}
+    \item Updated folder READMEs for modified modules \dotfill \textbf{4 pts}
+\end{itemize}
+
+\subsection*{Bonus (up to +10 pts)}
+\begin{itemize}
+    \item Novel extension beyond task requirements (e.g., new functions, theoretical analysis, hybrid approaches) \dotfill \textbf{+5 pts}
+    \item Exceptional results (paper-quality plots, surprising insights, strong baselines) \dotfill \textbf{+5 pts}
+\end{itemize}
+
+\sectiondivider
+
+\section*{Presentation}
+
+Brief 10-minute presentation with slides covering: (1) Research question, (2) Implementation highlights, (3) Key results (3-4 plots/GIFs), (4) Failure analysis, (5) Future work. Live demo or pre-recorded GIF required.
+
+\section*{Submission}
+
+\begin{tcolorbox}[modern]
+\begin{itemize}
+    \item \textbf{GitHub}: Push all code, configs, and updated READMEs to repository
+    \item \textbf{Canvas}: Submit PDF slides and link to GitHub branch/PR
+    \item \textbf{Artifacts}: Include plots/GIFs in \codepath{images/semester\_contribution/}
+    \item \textbf{Team}: Document individual contributions in README
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{2em}
+
+\noindent\rule{\textwidth}{0.5pt}
+
+\vspace{0.5em}
+\noindent\textbf{Prepared by:} Tamás Takács \\
+\textbf{Semester:} 2025/26/2
+
+\vspace{1em}
+\begin{center}
+    \footnotesize\color{accentcolor} Licensed under \href{https://creativecommons.org/licenses/by-nc-nd/4.0/}{CC BY-NC-ND 4.0}. \copyright~Tamás Takács, 2025.
+\end{center}
+ 
+\end{document}

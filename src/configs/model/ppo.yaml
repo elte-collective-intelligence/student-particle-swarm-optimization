@@ -1,0 +1,13 @@
+name: ppo
+
+# Network architecture
+hidden_sizes: [64, 64]
+activation: relu
+dropout: 0.25
+
+# Optimizer settings
+learning_rate: 3e-4
+
+# Policy settings
+centralized_critic: true
+share_params: true

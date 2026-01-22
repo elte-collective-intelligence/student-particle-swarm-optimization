@@ -1,0 +1,35 @@
+# Dynamic landscape training and evaluation
+# Usage: python src/main.py --config-path configs/experiments --config-name dynamic_train
+# Hydra configuration
+hydra:
+  run:
+    dir: src/outputs/dynamic_train/${now:%Y-%m-%d}/${now:%H-%M-%S}
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0001
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 10
+  batch_size: 32
+  delta: 1.0
+  landscape_function: dynamic_sphere
+
+frames_per_batch: 4096
+minibatch_size: 256
+n_iters: 150
+num_epochs: 4
+max_grad_norm: 0.5
+clip_epsilon: 0.2
+entropy_coef: 0.01
+gamma: 0.99
+lmbda: 0.9
+output_dir: src/outputs/dynamic_train
+save_model: true
+save_plot: true

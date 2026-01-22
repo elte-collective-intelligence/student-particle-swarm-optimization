@@ -1,9 +1,24 @@
-FROM python:3.12.7-slim
+FROM python:3.12-slim
+
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt 
+# Install system dependencies in a single layer and clean up
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-COPY . .
+# Copy only requirements first for better caching
+COPY requirements.txt /app/
 
-CMD ["python", "src/main.py"]
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application
+COPY . /app
+
+# Set Python path
+ENV PYTHONPATH=/app/src
+
+# Default to bash for interactive use
+CMD ["/bin/bash"]

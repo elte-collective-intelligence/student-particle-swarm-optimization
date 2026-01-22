@@ -5,7 +5,16 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker system prune -af
+          df -h
 
       - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t particle-swarm-optimization-task .
+        run: docker build --progress plain -f docker/Dockerfile -t student_pso .

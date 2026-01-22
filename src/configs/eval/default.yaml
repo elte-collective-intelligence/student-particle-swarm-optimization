@@ -1,0 +1,5 @@
+# Default evaluation configuration
+num_eval_episodes: 10
+max_steps: 100
+save_metrics: true
+compare_random: true

@@ -1,11 +1,13 @@
 torch
 torchrl
 hydra-core
+omegaconf
 wandb
 numpy
 matplotlib
 imageio
 tqdm
 pytest
-hydra-core
-omegaconf
+black
+flake8
+pytest-cov

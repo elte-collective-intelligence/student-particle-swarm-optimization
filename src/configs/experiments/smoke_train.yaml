@@ -1,0 +1,35 @@
+# Quick smoke test for training
+# Usage: python src/main.py --config-path configs/experiments --config-name smoke_train
+# Hydra configuration
+hydra:
+  run:
+    dir: src/outputs/smoke_train/${now:%Y-%m-%d}/${now:%H-%M-%S}
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0003
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 5
+  batch_size: 4
+  delta: 1.0
+  landscape_function: sphere
+
+frames_per_batch: 512
+minibatch_size: 128
+n_iters: 10
+num_epochs: 2
+max_grad_norm: 0.5
+clip_epsilon: 0.2
+entropy_coef: 0.01
+gamma: 0.99
+lmbda: 0.9
+output_dir: src/outputs/smoke_train
+save_model: true
+save_plot: true

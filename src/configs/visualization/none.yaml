@@ -1,0 +1,7 @@
+# No visualization - fastest evaluation
+visualize_swarm: false
+visualize_landscape: false
+save_gif: false
+save_dir: 'src/outputs/vis/'
+fps: 10
+dpi: 150
