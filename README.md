@@ -13,7 +13,7 @@ This is your team's codebase for exploring **Particle Swarm Optimization (PSO)**
 
 ![PSO Swarm](./assignment/pso.png)
 
-Don't worry if it seems complex at first - this README will walk you through everything step by step!
+Don't worry if it seems complex at first, this README will walk you through everything step by step!
 
 ---
 
