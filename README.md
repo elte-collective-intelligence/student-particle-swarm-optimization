@@ -7,7 +7,7 @@
 
 ---
 
-**Welcome to Assignment 2!** 🎉
+**Welcome to Assignment 2!**
 
 This is your team's codebase for exploring **Particle Swarm Optimization (PSO)** through **Multi-Agent Reinforcement Learning**. Instead of using fixed PSO parameters, you'll train agents (particles) to *learn* optimal optimization strategies through interaction and rewards. Your swarm should cooperate to find global optima while adapting to dynamic, shifting landscapes!
 
@@ -17,7 +17,7 @@ Don't worry if it seems complex at first, this README will walk you through ever
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [What Is This Project?](#what-is-this-project)
 2. [The Environment](#the-environment)
@@ -140,7 +140,7 @@ We use **PPO (Proximal Policy Optimization)** with:
 - **GPU** (optional but faster)
 - **~2GB disk space** for Docker image
 
-### 🚀 30-Second Quickstart
+### 30-Second Quickstart
 
 ```bash
 # 1. Clone the repo
@@ -157,7 +157,7 @@ docker run --rm --gpus=all \
   python src/main.py --config-path configs/experiments --config-name smoke_train
 ```
 
-If you see training logs and "Training Complete!", you're good to go! 🎉
+If you see training logs and "Training Complete!", you're good to go!
 
 ### What Just Happened?
 
@@ -274,13 +274,13 @@ student-particle-swarm-optimization/
 │   ├── eval.py                      # Evaluation & visualization script
 │   ├── visualization.py             # 2D/3D swarm animations (427 lines)
 │   ├── utils.py                     # Wrappers & action extraction
-│   ├── README.md                    # 📖 Source code overview
+│   ├── README.md                    # Source code overview
 │   ├── envs/
-│   │   ├── README.md                # 📖 Environment documentation
+│   │   ├── README.md                # Environment documentation
 │   │   ├── env.py                   # PSO environment (241 lines)
 │   │   └── dynamic_functions.py     # Dynamic landscapes (188 lines)
 │   └── configs/
-│       ├── README.md                # 📖 Configuration guide
+│       ├── README.md                # Configuration guide
 │       ├── config.yaml              # Default training config
 │       ├── eval_config.yaml         # Evaluation config
 │       ├── env/                     # Environment settings
@@ -288,10 +288,10 @@ student-particle-swarm-optimization/
 │       ├── experiments/             # Pre-defined experiments
 │       └── visualization/           # Visualization options
 ├── test/
-│   ├── README.md                    # 📖 Test documentation
+│   ├── README.md                    # Test documentation
 │   └── test_env.py                  # Environment tests (23 tests)
 ├── scripts/
-│   ├── README.md                    # 📖 Scripts documentation
+│   ├── README.md                    # Scripts documentation
 │   ├── run_experiment.sh            # Run single experiment
 │   ├── train_all.sh                 # Run all training
 │   └── eval_model.sh                # Evaluate trained model
@@ -302,7 +302,7 @@ student-particle-swarm-optimization/
 └── README.md                        # You are here!
 ```
 
-**📚 Every directory has a comprehensive README!** Each explains:
+**Every directory has a comprehensive README!** Each explains:
 - What each file does
 - How components interact
 - Usage examples
@@ -558,7 +558,7 @@ The optimum moves in a circular path - tests adaptive tracking.
 
 ### Core Metrics
 
-#### 1. 📊 Fitness Improvement (Reward)
+#### 1. Fitness Improvement (Reward)
 
 **What it measures**: How much the swarm improves each step
 
@@ -567,7 +567,7 @@ reward = current_score - previous_score
 # Higher is better (we negate functions, so minimization → maximization)
 ```
 
-#### 2. 🎯 Best Fitness Found
+#### 2. Best Fitness Found
 
 **What it measures**: Quality of the best solution found
 
@@ -575,7 +575,7 @@ reward = current_score - previous_score
 best_fitness = max(global_best_score over episode)
 ```
 
-#### 3. 🌐 Swarm Diversity
+#### 3. Swarm Diversity
 
 **What it measures**: How spread out the particles are
 
@@ -744,10 +744,12 @@ docker run --rm -it --gpus=all -v $(pwd):/app student_pso bash
 
 ## License
 
-This project is licensed under CC BY-NC-ND 4.0. See [LICENSE](LICENSE) for details.
+This project is licensed under **CC BY-NC-ND 4.0**. See the [LICENSE](LICENSE) file for details.
+
+**TL;DR**: You can use this for educational purposes but not for commercial use, and you can't redistribute modified versions without permission.
 
 ---
 
-**Happy optimizing!** 🎯✨
+**Good luck with your assignment!**
 
-If you have questions, check the README files in each subdirectory or ask your instructor.
+Remember: Start with `smoke_train` to understand the system, then move to your specific task. Read the code, run experiments, and don't hesitate to ask questions!
