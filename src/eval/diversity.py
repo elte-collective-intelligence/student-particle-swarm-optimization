@@ -23,7 +23,6 @@ Return values always carry the batch dimension, e.g. shape ``(batch,)``.
 
 from __future__ import annotations
 
-import math
 import warnings
 from typing import Dict, Optional
 

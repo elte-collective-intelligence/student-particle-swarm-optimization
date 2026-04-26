@@ -6,7 +6,6 @@ Extracted here to avoid circular imports and code duplication.
 
 from __future__ import annotations
 
-import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,10 +13,8 @@ import torch.distributions as d
 from tensordict.nn import TensorDictModule, TensorDictSequential, CompositeDistribution
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.modules import MultiAgentMLP, ProbabilisticActor
-from torchrl.envs import RewardSum, TransformedEnv
 from tqdm import tqdm
 
-from envs import PSOEnv
 from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHolder
 from utils import LandscapeWrapper, PSOActionExtractor, PSOObservationWrapper
 from eval.diversity import DiversityTracker

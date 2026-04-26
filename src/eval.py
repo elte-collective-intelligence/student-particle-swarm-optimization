@@ -30,7 +30,6 @@ from eval_helpers import (
     create_policy,
     create_random_policy,
     evaluate_policy,
-    _print_metric_summary,
 )
 
 # =============================================================================

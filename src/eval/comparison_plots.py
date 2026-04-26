@@ -480,7 +480,6 @@ def plot_summary_heatmap(
         ("info_num_spread_events", "Spread Events", False),
     ]
 
-    topologies = _topology_order(results)
     policies = _policy_order(results)
 
     if policy_filter is not None:
@@ -574,7 +573,7 @@ def plot_summary_heatmap(
     if len(policies) > 1 and not policy_filter:
         path = os.path.join(output_dir, filename)
         # Just reuse the individual files; combined is the first one saved
-        print(f"  (per-policy heatmaps saved as summary_heatmap_<policy>.png)")
+        print("  (per-policy heatmaps saved as summary_heatmap_<policy>.png)")
         return saved_paths[0] if saved_paths else None
 
     return saved_paths[0] if saved_paths else None
@@ -751,7 +750,7 @@ def _load_results_from_json(json_path: str) -> list:
 
 
 if __name__ == "__main__":
-    import argparse, sys
+    import argparse
 
     parser = argparse.ArgumentParser(
         description="Generate comparison plots from a saved multi_topology_metrics.json"
