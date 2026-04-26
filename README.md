@@ -627,6 +627,21 @@ python src/eval.py model_path=src/outputs/sphere_full/policy.pt \
     visualization.save_dir=src/outputs/vis/
 ```
 
+### Side-by-Side Topology GIFs
+
+Generate synchronized comparison GIFs where each panel shows one topology on the
+same landscape function:
+
+```bash
+python src/generate_side_by_side_gifs.py
+
+# Example override: only sphere, only two topologies, shorter rollout
+python src/generate_side_by_side_gifs.py \
+  functions=[sphere] \
+  selected_topologies=[global,ring] \
+  gif.max_steps=50
+```
+
 ---
 
 ## Troubleshooting & Tips

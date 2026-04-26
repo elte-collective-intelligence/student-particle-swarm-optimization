@@ -1,0 +1,52 @@
+# Full topology evaluation preset
+# Usage: python src/eval.py --config-path configs/experiments --config-name topology_full_eval
+hydra:
+  run:
+    dir: src/outputs/topology_full_eval/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0001
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 12
+  batch_size: 1
+  delta: 1.0
+  landscape_function: sphere
+
+topology:
+  type: knearest
+  k: 2
+  recompute_interval: 5
+  rows: null
+  cols: null
+  grid_shape:
+    rows: null
+    cols: null
+    rule: infer_if_missing
+  symmetric: true
+  include_self: true
+
+eval:
+  num_eval_episodes: 25
+  max_steps: 100
+  save_metrics: true
+  compare_random: true
+
+visualization:
+  visualize_swarm: true
+  visualize_landscape: true
+  save_gif: true
+  save_dir: src/outputs/topology_full_eval/vis/
+  fps: 10
+  dpi: 150
+
+model_path: src/outputs/topology_full_train/best_model.pt
+output_dir: src/outputs/topology_full_eval

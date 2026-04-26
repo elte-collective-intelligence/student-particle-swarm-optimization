@@ -1,0 +1,47 @@
+# Side-by-side swarm GIF generation config
+# Usage:
+#   python src/generate_side_by_side_gifs.py
+#   python src/generate_side_by_side_gifs.py functions=[sphere,rastrigin]
+#   python src/generate_side_by_side_gifs.py selected_topologies=[global,ring]
+
+hydra:
+  run:
+    dir: src/outputs/gif_compare/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+model:
+  hidden_sizes: [64, 64]
+  share_params: true
+  dropout: 0.25
+
+env:
+  landscape_dim: 2
+  num_agents: 8
+  delta: 1.0
+
+functions: [sphere, rastrigin]
+selected_topologies: [global, ring, von_neumann, knearest]
+
+topology_catalog:
+  global:
+    include_self: true
+  ring:
+    k: 1
+    include_self: true
+  von_neumann:
+    rows: null
+    cols: null
+    include_self: true
+  knearest:
+    k: 2
+    recompute_interval: 5
+    symmetric: true
+    include_self: true
+
+gif:
+  max_steps: 80
+  fps: 10
+  show_landscape: true
+
+model_path: src/outputs/best_model.pt
+output_dir: src/outputs/gif_compare
+seed: 42

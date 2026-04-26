@@ -1,6 +1,7 @@
 defaults:
   - model: ppo
   - env: swarm
+  - topology: global
   - _self_
 
 # Hydra configuration
@@ -27,3 +28,4 @@ lmbda: 0.9
 output_dir: src/outputs
 save_model: true
 save_plot: true
+seed: 42

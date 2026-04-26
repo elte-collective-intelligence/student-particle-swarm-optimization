@@ -8,6 +8,7 @@ sys.path.append(str(root_dir / "src"))
 import torch  # noqa: E402
 from tensordict import TensorDict  # noqa: E402
 import pytest  # noqa: E402
+from torchrl.envs import RewardSum, TransformedEnv  # noqa: E402
 
 from envs.env import PSOEnv, get_neighborhood_avg  # noqa: E402
 from envs.dynamic_functions import DynamicSphere  # noqa: E402
@@ -54,6 +55,8 @@ class TestPSOBasicFunctionality:
         assert "scores" in obs
         assert "personal_best_pos" in obs
         assert "personal_best_scores" in obs
+        assert "neighborhood_best_pos" in obs
+        assert "neighborhood_best_scores" in obs
 
         assert obs["positions"].shape[-3:] == (
             basic_env.batch_size[0],
@@ -66,6 +69,15 @@ class TestPSOBasicFunctionality:
             basic_env.landscape.dim,
         )
         assert obs["scores"].shape[-2:] == (
+            basic_env.batch_size[0],
+            basic_env.num_agents,
+        )
+        assert obs["neighborhood_best_pos"].shape[-3:] == (
+            basic_env.batch_size[0],
+            basic_env.num_agents,
+            basic_env.landscape.dim,
+        )
+        assert obs["neighborhood_best_scores"].shape[-2:] == (
             basic_env.batch_size[0],
             basic_env.num_agents,
         )
@@ -114,6 +126,10 @@ class TestPSOBasicFunctionality:
             "scores",
             "personal_best_pos",
             "personal_best_scores",
+            "neighborhood_best_pos",
+            "neighborhood_best_scores",
+            "neighborhood_best_pos",
+            "neighborhood_best_scores",
             "avg_pos",
             "avg_vel",
         ]:
@@ -122,6 +138,100 @@ class TestPSOBasicFunctionality:
         # Check if reward is present and has correct shape
         assert ("agents", "reward") in new_obs
         assert new_obs[("agents", "reward")].shape == (basic_env.batch_size[0], 5)
+
+    def test_reset_step_compatibility(self, basic_env):
+        """
+        Test that reset and step preserve the expected keys and tensor shapes.
+        """
+        obs = basic_env.reset()
+        if "next" in obs:
+            obs = obs["next"]
+
+        expected_keys = {
+            "positions",
+            "velocities",
+            "scores",
+            "personal_best_pos",
+            "personal_best_scores",
+            "neighborhood_best_pos",
+            "neighborhood_best_scores",
+            "avg_pos",
+            "avg_vel",
+        }
+        assert expected_keys.issubset(obs.keys())
+        assert obs["positions"].shape == (
+            basic_env.batch_size[0],
+            basic_env.num_agents,
+            basic_env.landscape.dim,
+        )
+        assert obs["velocities"].shape == (
+            basic_env.batch_size[0],
+            basic_env.num_agents,
+            basic_env.landscape.dim,
+        )
+        assert obs["scores"].shape == (basic_env.batch_size[0], basic_env.num_agents)
+
+        action = TensorDict(
+            {
+                "inertia": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+                "cognitive": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+                "social": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+            },
+            batch_size=(basic_env.batch_size[0],),
+        )
+
+        step_obs = basic_env.step(action)
+        if "next" in step_obs:
+            step_obs = step_obs["next"]
+
+        assert expected_keys.issubset(step_obs.keys())
+        assert ("agents", "reward") in step_obs
+        assert step_obs[("agents", "reward")].shape == (
+            basic_env.batch_size[0],
+            basic_env.num_agents,
+        )
+
+    def test_reward_sum_compatibility(self, basic_env):
+        """
+        Test that the env still works with TorchRL reward aggregation used by PPO.
+        """
+        transformed_env = TransformedEnv(
+            basic_env,
+            RewardSum(in_keys=[basic_env.reward_key], out_keys=[("agents", "episode_reward")]),
+            device=basic_env.device,
+        )
+
+        obs = transformed_env.reset()
+        if "next" in obs:
+            obs = obs["next"]
+
+        action = TensorDict(
+            {
+                "inertia": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+                "cognitive": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+                "social": torch.zeros(
+                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                ),
+            },
+            batch_size=(basic_env.batch_size[0],),
+        )
+
+        step_obs = transformed_env.step(action)
+        if "next" in step_obs:
+            step_obs = step_obs["next"]
+
+        assert ("agents", "reward") in step_obs
+        assert ("agents", "episode_reward") in step_obs
 
 
 class TestDynamicFunctions:
@@ -322,26 +432,27 @@ class TestRewardMechanics:
 
         return env
 
+    def _set_coherent_state(self, env, positions):
+        env.positions = positions
+        env.velocities = torch.zeros_like(env.positions)
+        env.scores = env.landscape(env.positions)
+        env.personal_best_pos = env.positions.clone()
+        env.personal_best_scores = env.scores.clone()
+        env.initialize_topology(env.positions)
+        env.compute_neighborhood_best()
+        env.avg_pos, env.avg_vel = get_neighborhood_avg(
+            env.positions, env.velocities, env.delta
+        )
+
     def test_reward_calculation(self, reward_env):
         """
         Test checks if rewards are calculated correctly.
         Sets positions and scores, performs a step, and checks reward shape.
         """
-        # Set positions and scores
-
-        reward_env.positions = torch.zeros(
+        positions = torch.zeros(
             reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device
         )
-        reward_env.velocities = torch.zeros_like(reward_env.positions)
-        reward_env.scores = torch.zeros(
-            reward_env.batch_size[0], reward_env.num_agents, device=reward_env.device
-        )
-
-        # Take a step that improves scores
-        new_positions = torch.ones(
-            reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device
-        )
-        new_scores = reward_env.landscape(new_positions)
+        self._set_coherent_state(reward_env, positions)
 
         action = TensorDict(
             {
@@ -365,18 +476,6 @@ class TestRewardMechanics:
                 ),
             },
             batch_size=(reward_env.batch_size[0],),
-        )
-
-        # Mock the position update
-        reward_env.positions = new_positions
-        reward_env.velocities = torch.zeros_like(new_positions)
-        reward_env.scores = new_scores
-        reward_env.personal_best_pos = reward_env.positions.clone()
-        reward_env.personal_best_scores = reward_env.landscape(
-            reward_env.personal_best_pos
-        )
-        reward_env.avg_pos, reward_env.average_vel = get_neighborhood_avg(
-            reward_env.positions, reward_env.velocities, reward_env.delta
         )
 
         obs = reward_env.step(action)
@@ -413,6 +512,15 @@ class TestRewardMechanics:
             2,
         )
         assert obs["personal_best_scores"].shape == (
+            reward_env.batch_size[0],
+            reward_env.num_agents,
+        )
+        assert obs["neighborhood_best_pos"].shape == (
+            reward_env.batch_size[0],
+            reward_env.num_agents,
+            2,
+        )
+        assert obs["neighborhood_best_scores"].shape == (
             reward_env.batch_size[0],
             reward_env.num_agents,
         )
@@ -482,14 +590,10 @@ class TestRewardMechanics:
         """
 
         reward_env.reset()
-        reward_env.positions = torch.ones(
+        positions = torch.ones(
             reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device
         )
-        reward_env.velocities = torch.zeros_like(reward_env.positions)
-        reward_env.scores = reward_env.landscape(reward_env.positions)
-        reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(
-            reward_env.positions, reward_env.velocities, reward_env.delta
-        )
+        self._set_coherent_state(reward_env, positions)
 
         action = TensorDict(
             {
@@ -527,14 +631,10 @@ class TestRewardMechanics:
         """
 
         reward_env.reset()
-        reward_env.positions = torch.zeros(
+        positions = torch.zeros(
             reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device
         )
-        reward_env.velocities = torch.zeros_like(reward_env.positions)
-        reward_env.scores = reward_env.landscape(reward_env.positions)
-        reward_env.avg_pos, reward_env.avg_vel = get_neighborhood_avg(
-            reward_env.positions, reward_env.velocities, reward_env.delta
-        )
+        self._set_coherent_state(reward_env, positions)
         action = TensorDict(
             {
                 "inertia": torch.zeros(
@@ -564,6 +664,113 @@ class TestRewardMechanics:
             obs = obs["next"]
 
         assert torch.all(obs[("agents", "reward")] == 0)
+
+    def test_reward_mechanics_topology_improvement(self, reward_env):
+        """
+        Test checks that an actual improvement produces a positive, bounded reward.
+        """
+
+        reward_env.reset()
+        reward_env.topology_config = {"type": "ring", "k": 1}
+
+        positions = torch.ones(
+            reward_env.batch_size[0], reward_env.num_agents, 2, device=reward_env.device
+        )
+        self._set_coherent_state(reward_env, positions)
+        reward_env.velocities[0, 1] = -torch.ones(2, device=reward_env.device)
+
+        action = TensorDict(
+            {
+                "inertia": torch.zeros(
+                    reward_env.batch_size[0],
+                    reward_env.num_agents,
+                    2,
+                    device=reward_env.device,
+                ),
+                "cognitive": torch.zeros(
+                    reward_env.batch_size[0],
+                    reward_env.num_agents,
+                    2,
+                    device=reward_env.device,
+                ),
+                "social": torch.zeros(
+                    reward_env.batch_size[0],
+                    reward_env.num_agents,
+                    2,
+                    device=reward_env.device,
+                ),
+            },
+            batch_size=(reward_env.batch_size[0],),
+        )
+        action["inertia"][0, 1] = 1.0
+
+        obs = reward_env.step(action)
+        if "next" in obs:
+            obs = obs["next"]
+
+        reward = obs[("agents", "reward")]
+        assert torch.any(reward > 0)
+        assert torch.all(reward <= 1.0)
+
+
+class TestTopologyIntegration:
+    """Test topology lifecycle integration in PSOEnv"""
+
+    @pytest.fixture
+    def topology_env(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        landscape = LandscapeWrapper(lambda x: -torch.sum(x**2, dim=-1), dim=2)
+        return PSOEnv(
+            landscape=landscape,
+            num_agents=4,
+            device=device,
+            batch_size=(2,),
+            delta=1.0,
+            topology_config={"type": "knearest", "k": 1, "recompute_interval": 1},
+        )
+
+    def test_reset_initializes_topology(self, topology_env):
+        obs = topology_env.reset()
+
+        if "next" in obs:
+            obs = obs["next"]
+
+        assert topology_env.topology is not None
+        assert topology_env.step_count == 0
+        assert topology_env.topology.get_adjacency().shape == (4, 4)
+        assert obs["neighborhood_best_pos"].shape == (2, 4, 2)
+        assert obs["neighborhood_best_scores"].shape == (2, 4)
+
+    def test_dynamic_topology_updates_on_step(self, topology_env):
+        topology_env.reset()
+
+        positions_a = torch.tensor(
+            [[[0.0, 0.0], [1.0, 0.0], [10.0, 0.0], [11.0, 0.0]]],
+            device=topology_env.device,
+        ).repeat(topology_env.batch_size[0], 1, 1)
+        positions_b = torch.tensor(
+            [[[0.0, 0.0], [10.0, 0.0], [1.0, 0.0], [11.0, 0.0]]],
+            device=topology_env.device,
+        ).repeat(topology_env.batch_size[0], 1, 1)
+
+        topology_env.positions = positions_a
+        topology_env.velocities = torch.zeros_like(topology_env.positions)
+        topology_env.personal_best_pos = topology_env.positions.clone()
+        topology_env.personal_best_scores = topology_env.landscape(
+            topology_env.personal_best_pos
+        )
+        topology_env.scores = topology_env.landscape(topology_env.positions)
+        topology_env.initialize_topology(topology_env.positions)
+
+        initial_adjacency = topology_env.topology.get_adjacency().clone()
+
+        topology_env.positions = positions_b
+        topology_env.step_count = 1
+        updated = topology_env.update_topology()
+
+        assert updated is True
+        assert not torch.equal(topology_env.topology.get_adjacency(), initial_adjacency)
 
 
 class TestUtilsAndWrappers:

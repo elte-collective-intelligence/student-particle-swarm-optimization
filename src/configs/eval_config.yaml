@@ -1,3 +1,7 @@
+defaults:
+  - topology: global
+  - _self_
+
 # Evaluation configuration file for PSO
 # Usage: python src/eval.py model_path=outputs/best_model.pt
 # Hydra configuration
@@ -42,3 +46,4 @@ model_path: src/outputs/best_model.pt
 
 # Output directory for evaluation results
 output_dir: src/outputs/eval
+seed: 42

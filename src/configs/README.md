@@ -10,6 +10,7 @@ configs/
 ├── eval_config.yaml      # Default evaluation configuration
 ├── env/                  # Environment configurations
 ├── model/                # Model/agent configurations
+├── topology/             # Topology configs (global/ring/von_neumann/knearest)
 ├── experiments/          # Complete experiment configurations
 ├── visualization/        # Visualization settings
 └── eval/                 # Evaluation settings
@@ -52,6 +53,23 @@ normalize_rewards: true  # Normalize to [-1, 1]
   - `rastrigin`: Multimodal (tests exploration)
   - `rosenbrock`: Valley-shaped (tests exploitation)
   - `ackley`: Complex multimodal
+
+## Topology Configurations (`topology/`)
+
+Topology configs are organized as a Hydra config group with one file per topology:
+
+- `global.yaml`
+- `ring.yaml`
+- `von_neumann.yaml`
+- `knearest.yaml`
+
+Each file provides a shared schema for easier overrides:
+
+- `type`
+- `k`
+- `recompute_interval`
+- `rows`, `cols`
+- `grid_shape` rules
 
 ## Model Configurations (`model/`)
 

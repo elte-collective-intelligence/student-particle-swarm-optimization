@@ -21,6 +21,8 @@ from torchrl.envs import RewardSum, TransformedEnv
 from torchrl.data.replay_buffers import ReplayBuffer
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.replay_buffers.storages import LazyTensorStorage
+import random
+import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 import hydra
@@ -446,13 +448,22 @@ def main(cfg: DictConfig):
 
     save_model = cfg.save_model
     save_plot = cfg.save_plot
+    seed = cfg.get("seed", 42)
     output_dir = os.path.join(get_original_cwd(), cfg.output_dir)
+
+    # Set seeds for reproducibility
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
     # Derived values
     total_frames = frames_per_batch * n_iters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"\nDevice: {device}")
+    print(f"Seed: {seed}")
     print(f"Landscape: {landscape_name} ({landscape_dim}D)")
     print(f"Agents: {num_agents}")
     print(f"Total frames: {total_frames}")
@@ -469,7 +480,9 @@ def main(cfg: DictConfig):
         device=device,
         batch_size=(batch_size,),
         delta=delta,
+        topology_config=cfg.get("topology", None),
     )
+    env.set_seed(seed)
 
     env = TransformedEnv(
         env,

@@ -1,0 +1,10 @@
+type: global
+k: null
+recompute_interval: null
+rows: null
+cols: null
+grid_shape:
+  rows: null
+  cols: null
+  rule: infer_if_missing
+include_self: true

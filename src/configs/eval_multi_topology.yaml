@@ -1,0 +1,108 @@
+# Multi-topology evaluation configuration
+# Usage:
+#   python src/eval_multi_topology.py
+#   python src/eval_multi_topology.py env.landscape_function=rastrigin seed=123
+#
+# Hydra configuration
+hydra:
+  run:
+    dir: src/outputs/eval_multi/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: src/outputs/eval_multi/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0003
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 8
+  batch_size: 1
+  delta: 1.0
+  landscape_function: sphere
+
+eval:
+  num_eval_episodes: 10
+  max_steps: 100
+  save_metrics: true
+  compare_random: true
+  collect_diversity: true
+  collect_info_spread: true
+  save_metric_curves: true
+
+# -------------------------------------------------------------------
+# Topology sweep — all topology names listed here will be evaluated
+# under the same landscape / seed settings and compared side-by-side.
+# Each entry corresponds to the `type` field in the topology configs.
+# Supported values: global | ring | von_neumann | knearest
+# -------------------------------------------------------------------
+topologies:
+  - name: global
+    type: global
+    k: null
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: ring
+    type: ring
+    k: 1
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: von_neumann
+    type: von_neumann
+    k: null
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: knearest
+    type: knearest
+    k: 2
+    recompute_interval: 5
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    symmetric: true
+    include_self: true
+
+visualization:
+  visualize_swarm: false
+  visualize_landscape: false
+  save_gif: false
+  save_dir: src/outputs/vis/
+  fps: 10
+  dpi: 150
+
+# Model checkpoint to evaluate
+model_path: src/outputs/best_model.pt
+
+# Output directory for evaluation results
+output_dir: src/outputs/eval_multi
+seed: 42

@@ -10,284 +10,33 @@ Usage:
 """
 
 import os
-import torch
-import torch.nn as nn
-import torch.distributions as d
-from tensordict.nn import TensorDictModule, TensorDictSequential, CompositeDistribution
-from torchrl.modules import MultiAgentMLP, ProbabilisticActor
-from tensordict.nn.distributions import NormalParamExtractor
-from torchrl.envs import RewardSum, TransformedEnv
+import random
+import csv
+import json
+
 import numpy as np
+import torch
 import hydra
 from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
-from tqdm import tqdm
+from torchrl.envs import RewardSum, TransformedEnv
 
 from envs import PSOEnv
-from envs.dynamic_functions import DynamicSphere, DynamicRastrigin, DynamicEggHolder
-from utils import LandscapeWrapper, PSOActionExtractor, PSOObservationWrapper
 from visualization import SwarmVisualizer
 
-# =============================================================================
-# Landscape Functions
-# =============================================================================
-
-
-def eggholder(x: torch.Tensor) -> torch.Tensor:
-    """Eggholder test function for even-dimensional input."""
-    if x.shape[-1] % 2 != 0:
-        raise ValueError("Eggholder function requires even-dimensional input.")
-
-    x_pairs = x.view(*x.shape[:-1], -1, 2)
-    x_i = x_pairs[..., 0]
-    x_j = x_pairs[..., 1]
-
-    term1 = -(x_j + 47) * torch.sin(torch.sqrt(torch.abs(x_j + x_i / 2 + 47)))
-    term2 = -x_i * torch.sin(torch.sqrt(torch.abs(x_i - (x_j + 47))))
-    result = term1 + term2
-
-    return result.sum(dim=-1)
-
-
-def sphere(x: torch.Tensor) -> torch.Tensor:
-    """Sphere function: f(x) = -sum(x^2). Optimum at origin."""
-    return -torch.sum(x**2, dim=-1)
-
-
-def rastrigin(x: torch.Tensor) -> torch.Tensor:
-    """Rastrigin function: highly multimodal test function."""
-    A = 10
-    return -(A * x.shape[-1] + torch.sum(x**2 - A * torch.cos(2 * 3.14159 * x), dim=-1))
-
-
-def get_landscape_function(name: str, dim: int):
-    """Get a landscape function by name."""
-    static_functions = {
-        "eggholder": eggholder,
-        "sphere": sphere,
-        "rastrigin": rastrigin,
-    }
-
-    if name in static_functions:
-        return LandscapeWrapper(static_functions[name], dim=dim)
-
-    dynamic_functions = {
-        "dynamic_sphere": lambda d: DynamicSphere(dim=d),
-        "dynamic_rastrigin": lambda d: DynamicRastrigin(dim=d),
-        "dynamic_eggholder": lambda d: DynamicEggHolder(dim=d) if d == 2 else None,
-    }
-
-    if name in dynamic_functions:
-        func = dynamic_functions[name](dim)
-        if func is None:
-            raise ValueError(f"Function {name} not available for dim={dim}")
-        return func
-
-    available = list(static_functions.keys()) + list(dynamic_functions.keys())
-    raise ValueError(f"Unknown landscape function: {name}. Available: {available}")
-
+# Shared helpers (also used by eval_multi_topology.py)
+from eval_helpers import (
+    get_landscape_function,
+    create_policy,
+    create_random_policy,
+    evaluate_policy,
+    _print_metric_summary,
+)
 
 # =============================================================================
-# Policy Creation
+# Evaluation-only helpers (saving, comparison plots)
 # =============================================================================
 
-
-def create_policy(env, num_agents, dim, hidden_sizes, share_params, dropout, device):
-    """Create a policy network matching the training setup."""
-    policy_kwargs = {
-        "n_agent_inputs": 2 * dim,
-        "n_agent_outputs": 3 * 2 * dim,
-        "n_agents": num_agents,
-        "centralized": False,
-        "share_params": share_params,
-        "device": device,
-        "num_cells": hidden_sizes,
-        "dropout": dropout,
-    }
-
-    policy = ProbabilisticActor(
-        TensorDictSequential(
-            TensorDictModule(
-                PSOObservationWrapper(),
-                in_keys=["avg_pos", "avg_vel"],
-                out_keys=["agent_input"],
-            ),
-            TensorDictModule(
-                nn.Sequential(
-                    MultiAgentMLP(**policy_kwargs),
-                    NormalParamExtractor(),
-                    PSOActionExtractor(dim=dim, transform_actions=True),
-                ),
-                in_keys=["agent_input"],
-                out_keys=[
-                    ("params", "inertia", "loc"),
-                    ("params", "inertia", "scale"),
-                    ("params", "cognitive", "loc"),
-                    ("params", "cognitive", "scale"),
-                    ("params", "social", "loc"),
-                    ("params", "social", "scale"),
-                ],
-            ),
-        ),
-        in_keys=["params"],
-        spec=env.action_spec,
-        out_keys=["inertia", "cognitive", "social"],
-        distribution_class=CompositeDistribution,
-        distribution_kwargs={
-            "distribution_map": {
-                "inertia": d.Normal,
-                "cognitive": d.Normal,
-                "social": d.Normal,
-            },
-        },
-        return_log_prob=True,
-    )
-
-    return policy
-
-
-def create_random_policy(dim, device):
-    """Create a random policy that outputs fixed standard PSO parameters."""
-
-    class RandomPSOPolicy(nn.Module):
-        def __init__(self, dim):
-            super().__init__()
-            self.dim = dim
-
-        def forward(self, tensordict):
-            batch_shape = tensordict["avg_pos"].shape[:-1]
-
-            # Standard PSO parameters with small noise
-            inertia = 0.7 + 0.1 * torch.randn(*batch_shape, self.dim, device=device)
-            cognitive = 1.5 + 0.2 * torch.randn(*batch_shape, self.dim, device=device)
-            social = 1.5 + 0.2 * torch.randn(*batch_shape, self.dim, device=device)
-
-            tensordict["inertia"] = inertia
-            tensordict["cognitive"] = cognitive
-            tensordict["social"] = social
-
-            return tensordict
-
-    return RandomPSOPolicy(dim)
-
-
-# =============================================================================
-# Evaluation Functions
-# =============================================================================
-
-
-def evaluate_policy(
-    env,
-    policy,
-    num_episodes: int,
-    max_steps: int,
-    visualizer: SwarmVisualizer = None,
-    policy_name: str = "policy",
-):
-    """
-    Evaluate a policy over multiple episodes.
-
-    Args:
-        env: The environment
-        policy: The policy to evaluate
-        num_episodes: Number of evaluation episodes
-        max_steps: Maximum steps per episode
-        visualizer: Optional visualizer for recording frames
-        policy_name: Name for logging
-
-    Returns:
-        Dictionary of evaluation metrics
-    """
-    all_final_scores = []
-    all_best_scores = []
-    all_cumulative_rewards = []
-    all_convergence_curves = []
-
-    # Get base environment (unwrap TransformedEnv if needed)
-    base_env = env.base_env if hasattr(env, "base_env") else env
-
-    for ep in tqdm(range(num_episodes), desc=f"Evaluating {policy_name}"):
-        # Reset visualizer if provided
-        if visualizer:
-            visualizer.reset(episode=ep)
-
-        data = env.reset()
-        episode_reward = 0
-        best_scores_curve = []
-        mean_scores_curve = []
-
-        for step in range(max_steps):
-            # Get action
-            if hasattr(policy, "module"):
-                # TorchRL policy
-                with torch.no_grad():
-                    data = policy(data)
-            else:
-                # Simple policy (random)
-                with torch.no_grad():
-                    data = policy(data)
-
-            # Step environment
-            data = env.step(data)
-
-            # Record metrics
-            reward = data["next", "agents", "reward"].mean().item()
-            episode_reward += reward
-
-            # Get scores from environment
-            scores = base_env.scores[0].cpu()  # First batch
-            best_score = scores.max().item()
-            mean_score = scores.mean().item()
-
-            best_scores_curve.append(best_score)
-            mean_scores_curve.append(mean_score)
-
-            # Record frame for visualization
-            if visualizer and visualizer.visualize_swarm:
-                # Compute global best from personal bests
-                pb_scores = base_env.personal_best_scores[0]  # [agents]
-                best_idx = pb_scores.argmax()
-                global_best = base_env.personal_best_pos[0, best_idx].unsqueeze(0)
-
-                visualizer.record_frame(
-                    positions=base_env.positions,
-                    velocities=base_env.velocities,
-                    personal_bests=base_env.personal_best_pos,
-                    global_best=global_best,
-                    scores=base_env.scores,
-                    timestep=step,
-                )
-
-            # Prepare for next step
-            data = data["next"]
-
-        # Episode metrics
-        final_best_score = best_scores_curve[-1]
-        all_final_scores.append(final_best_score)
-        all_best_scores.append(max(best_scores_curve))
-        all_cumulative_rewards.append(episode_reward)
-        all_convergence_curves.append(best_scores_curve)
-
-        # Save visualizations for first episode
-        if visualizer and ep == 0:
-            visualizer.save_all_visualizations(
-                best_scores=best_scores_curve, mean_scores=mean_scores_curve
-            )
-
-    # Compute aggregate metrics
-    metrics = {
-        "policy_name": policy_name,
-        "num_episodes": num_episodes,
-        "max_steps": max_steps,
-        "mean_final_score": np.mean(all_final_scores),
-        "std_final_score": np.std(all_final_scores),
-        "mean_best_score": np.mean(all_best_scores),
-        "std_best_score": np.std(all_best_scores),
-        "mean_cumulative_reward": np.mean(all_cumulative_rewards),
-        "std_cumulative_reward": np.std(all_cumulative_rewards),
-    }
-
-    return metrics, all_convergence_curves
 
 
 def compare_policies(metrics_list: list, output_dir: str):
@@ -362,7 +111,98 @@ def compare_policies(metrics_list: list, output_dir: str):
     print("=" * 70)
 
 
+
+
+
+def save_evaluation_metrics(
+    output_dir: str,
+    metrics_list: list,
+    histories_by_policy: list,
+    save_curves: bool = True,
+) -> None:
+    """
+    Save evaluation metrics to JSON and CSV.
+
+    Args:
+        output_dir: Directory to write files into
+        metrics_list: Aggregate metric dicts, one per policy
+        histories_by_policy: Per-episode history lists, one per policy
+        save_curves: Include per-step curve lists in the JSON output
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # ------------------------------------------------------------------ JSON
+    def _strip_curves(h: dict) -> dict:
+        """Replace list-valued curve fields with their mean scalar."""
+        out = {"episode": h["episode"]}
+        if "diversity" in h:
+            out["diversity"] = {
+                k: float(np.mean(v)) if isinstance(v, list) and v else v
+                for k, v in h["diversity"].items()
+            }
+        if "info_spread" in h:
+            out["info_spread"] = {
+                k: v for k, v in h["info_spread"].items()
+                if not isinstance(v, list)
+            }
+        return out
+
+    json_payload = {
+        "aggregate_metrics": metrics_list,
+        "episode_histories": {
+            m["policy_name"]: (
+                histories if save_curves else [_strip_curves(h) for h in histories]
+            )
+            for m, histories in zip(metrics_list, histories_by_policy)
+        },
+    }
+    json_path = os.path.join(output_dir, "eval_metrics.json")
+    with open(json_path, "w") as f:
+        json.dump(json_payload, f, indent=2, default=float)
+    print(f"Saved metrics  (JSON): {json_path}")
+
+    # ------------------------------------------------------------------ CSV
+    csv_path = os.path.join(output_dir, "eval_metrics_summary.csv")
+    fieldnames = [
+        "policy_name", "episode",
+        # diversity
+        "mean_pairwise_dist", "position_spread",
+        "velocity_alignment", "velocity_speed_std",
+        # information spread
+        "mean_adoption_fraction", "mean_information_entropy",
+        "num_spread_events", "mean_steps_to_50pct",
+        "mean_steps_to_90pct", "mean_adoption_rate",
+        "final_adoption_fraction",
+    ]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for metrics, histories in zip(metrics_list, histories_by_policy):
+            name = metrics["policy_name"]
+            for h in histories:
+                row: dict = {"policy_name": name, "episode": h["episode"]}
+                if "diversity" in h:
+                    div = h["diversity"]
+                    for key in ["mean_pairwise_dist", "position_spread",
+                                "velocity_alignment", "velocity_speed_std"]:
+                        vals = div.get(key, [])
+                        row[key] = float(np.mean(vals)) if vals else ""
+                if "info_spread" in h:
+                    isp = h["info_spread"]
+                    for key in [
+                        "mean_adoption_fraction", "mean_information_entropy",
+                        "num_spread_events", "mean_steps_to_50pct",
+                        "mean_steps_to_90pct", "mean_adoption_rate",
+                        "final_adoption_fraction",
+                    ]:
+                        val = isp.get(key)
+                        row[key] = "" if val is None else val
+                writer.writerow(row)
+    print(f"Saved metrics  (CSV) : {csv_path}")
+
+
 # =============================================================================
+
 # Main Entry Point
 # =============================================================================
 
@@ -380,6 +220,7 @@ def main(cfg: DictConfig):
     num_agents = cfg.env.num_agents
     landscape_name = cfg.env.landscape_function
     delta = cfg.env.delta
+    topology_cfg = cfg.get("topology", None)
 
     hidden_sizes = list(cfg.model.hidden_sizes)
     dropout = cfg.model.dropout
@@ -401,8 +242,18 @@ def main(cfg: DictConfig):
             get_original_cwd(), vis_config["save_dir"]
         )
 
+    seed = cfg.get("seed", 42)
+    
+    # Set seeds for reproducibility
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"\nDevice: {device}")
+    print(f"Seed: {seed}")
     print(f"Model: {model_path}")
     print(f"Landscape: {landscape_name} ({landscape_dim}D)")
     print(f"Episodes: {num_eval_episodes}, Steps: {max_steps}")
@@ -420,7 +271,9 @@ def main(cfg: DictConfig):
         device=device,
         batch_size=(1,),  # Single batch for evaluation
         delta=delta,
+        topology_config=topology_cfg,
     )
+    env.set_seed(seed)
 
     env = TransformedEnv(
         env,
@@ -456,40 +309,46 @@ def main(cfg: DictConfig):
     # Evaluate trained policy
     metrics_list = []
 
-    trained_metrics, trained_curves = evaluate_policy(
+    trained_metrics, trained_curves, trained_histories = evaluate_policy(
         env,
         policy,
         num_episodes=num_eval_episodes,
         max_steps=max_steps,
         visualizer=visualizer,
         policy_name="Trained Policy",
+        collect_diversity=cfg.eval.get("collect_diversity", True),
+        collect_info_spread=cfg.eval.get("collect_info_spread", True),
     )
     metrics_list.append(trained_metrics)
+    histories_by_policy = [trained_histories]
 
     # Optionally evaluate random baseline
     if compare_random:
         random_policy = create_random_policy(landscape_dim, device)
-        random_metrics, random_curves = evaluate_policy(
+        random_metrics, random_curves, random_histories = evaluate_policy(
             env,
             random_policy,
             num_episodes=num_eval_episodes,
             max_steps=max_steps,
             visualizer=None,  # Don't visualize random
             policy_name="Random Baseline",
+            collect_diversity=cfg.eval.get("collect_diversity", True),
+            collect_info_spread=cfg.eval.get("collect_info_spread", True),
         )
         metrics_list.append(random_metrics)
+        histories_by_policy.append(random_histories)
 
     # Compare and save results
     compare_policies(metrics_list, output_dir)
 
-    # Save metrics to file
+    # Save metrics (JSON + CSV)
     if save_metrics:
-        import json
-
-        metrics_path = os.path.join(output_dir, "eval_metrics.json")
-        with open(metrics_path, "w") as f:
-            json.dump(metrics_list, f, indent=2)
-        print(f"Saved metrics: {metrics_path}")
+        save_evaluation_metrics(
+            output_dir=output_dir,
+            metrics_list=metrics_list,
+            histories_by_policy=histories_by_policy,
+            save_curves=cfg.eval.get("save_metric_curves", True),
+        )
 
     print("\nEvaluation complete!")
 

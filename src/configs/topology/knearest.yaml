@@ -1,0 +1,11 @@
+type: knearest
+k: 2
+recompute_interval: 5
+rows: null
+cols: null
+grid_shape:
+  rows: null
+  cols: null
+  rule: infer_if_missing
+symmetric: true
+include_self: true

@@ -24,6 +24,25 @@ Full training experiment:
 python src/main.py --config-path ../conf/experiments --config-name full_train
 ```
 
+### Topology Quick Train (`topology_quick_train.yaml`)
+Quick topology-enabled training preset:
+- 8 agents with ring topology (`k=1`)
+- 10 iterations, 512 frames per batch
+- Fast check that topology wiring works in training
+
+```bash
+python src/main.py --config-path configs/experiments --config-name topology_quick_train
+```
+
+### Topology Full Train (`topology_full_train.yaml`)
+Full topology-enabled training preset:
+- 12 agents with dynamic k-nearest topology (`k=2`, `recompute_interval=5`)
+- 200 iterations, 4096 frames per batch
+
+```bash
+python src/main.py --config-path configs/experiments --config-name topology_full_train
+```
+
 ### Dynamic Train (`dynamic_train.yaml`)
 Training on dynamic (moving optimum) landscapes:
 - 10 agents, 2D dynamic sphere
@@ -52,6 +71,24 @@ Evaluation with full 2D/3D visualizations:
 
 ```bash
 python src/eval.py --config-path ../conf/experiments --config-name eval_vis
+```
+
+### Topology Quick Eval (`topology_quick_eval.yaml`)
+Quick topology-enabled evaluation preset:
+- 8 agents with ring topology (`k=1`)
+- 5 episodes, 50 steps
+
+```bash
+python src/eval.py --config-path configs/experiments --config-name topology_quick_eval
+```
+
+### Topology Full Eval (`topology_full_eval.yaml`)
+Full topology-enabled evaluation preset:
+- 12 agents with dynamic k-nearest topology (`k=2`, `recompute_interval=5`)
+- 25 episodes, 100 steps
+
+```bash
+python src/eval.py --config-path configs/experiments --config-name topology_full_eval
 ```
 
 ## Creating Custom Experiments
