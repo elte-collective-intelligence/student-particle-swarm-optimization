@@ -51,7 +51,6 @@ from typing import Dict, List, Optional
 import numpy as np
 import torch
 
-
 # ===========================================================================
 # 1. Pure adoption-fraction helper
 # ===========================================================================
