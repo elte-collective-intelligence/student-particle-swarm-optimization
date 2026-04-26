@@ -119,7 +119,7 @@ def information_entropy(adoption_fraction: torch.Tensor) -> torch.Tensor:
     # Clamping p in float32 doesn't help because 1 - 1e-9 rounds to 1.0,
     # making (1-p) = 0.0 and log2(0) = -inf, yielding 0 * -inf = NaN.
     p = adoption_fraction.clamp(0.0, 1.0)
-    log_p = p.clamp_min(1e-30).log2()          # -inf-safe
+    log_p = p.clamp_min(1e-30).log2()  # -inf-safe
     log_1mp = (1.0 - p).clamp_min(1e-30).log2()
     return -(p * log_p + (1.0 - p) * log_1mp)
 
@@ -389,15 +389,15 @@ class InformationSpreadTracker:
             "mean_steps_to_90pct": _mean_optional(
                 [e["steps_to_90pct"] for e in events]
             ),
-            "mean_adoption_rate": float(np.mean([e["adoption_rate"] for e in events]))
-            if events
-            else 0.0,
-            "mean_peak_adoption": float(np.mean([e["peak_adoption"] for e in events]))
-            if events
-            else 0.0,
-            "final_adoption_fraction": self._adoption_fractions[-1]
-            if self._adoption_fractions
-            else 0.0,
+            "mean_adoption_rate": (
+                float(np.mean([e["adoption_rate"] for e in events])) if events else 0.0
+            ),
+            "mean_peak_adoption": (
+                float(np.mean([e["peak_adoption"] for e in events])) if events else 0.0
+            ),
+            "final_adoption_fraction": (
+                self._adoption_fractions[-1] if self._adoption_fractions else 0.0
+            ),
             "total_steps": self._step,
         }
 
@@ -409,10 +409,12 @@ class InformationSpreadTracker:
         dict with keys ``"mean_adoption_fraction"``, ``"mean_information_entropy"``.
         """
         return {
-            "mean_adoption_fraction": float(np.mean(self._adoption_fractions))
-            if self._adoption_fractions
-            else 0.0,
-            "mean_information_entropy": float(np.mean(self._entropies))
-            if self._entropies
-            else 0.0,
+            "mean_adoption_fraction": (
+                float(np.mean(self._adoption_fractions))
+                if self._adoption_fractions
+                else 0.0
+            ),
+            "mean_information_entropy": (
+                float(np.mean(self._entropies)) if self._entropies else 0.0
+            ),
         }

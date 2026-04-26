@@ -191,7 +191,9 @@ class PSOEnv(EnvBase):
         last_neighborhood_best_scores: torch.Tensor,
     ) -> torch.Tensor:
         personal_delta = self.scores - last_scores
-        neighborhood_delta = self.neighborhood_best_scores - last_neighborhood_best_scores
+        neighborhood_delta = (
+            self.neighborhood_best_scores - last_neighborhood_best_scores
+        )
 
         personal_reward = self._stable_improvement_reward(personal_delta, last_scores)
         neighborhood_reward = self._stable_improvement_reward(

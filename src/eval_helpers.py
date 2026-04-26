@@ -140,9 +140,15 @@ def create_random_policy(dim, device):
 
         def forward(self, tensordict):
             batch_shape = tensordict["avg_pos"].shape[:-1]
-            tensordict["inertia"] = 0.7 + 0.1 * torch.randn(*batch_shape, self.dim, device=device)
-            tensordict["cognitive"] = 1.5 + 0.2 * torch.randn(*batch_shape, self.dim, device=device)
-            tensordict["social"] = 1.5 + 0.2 * torch.randn(*batch_shape, self.dim, device=device)
+            tensordict["inertia"] = 0.7 + 0.1 * torch.randn(
+                *batch_shape, self.dim, device=device
+            )
+            tensordict["cognitive"] = 1.5 + 0.2 * torch.randn(
+                *batch_shape, self.dim, device=device
+            )
+            tensordict["social"] = 1.5 + 0.2 * torch.randn(
+                *batch_shape, self.dim, device=device
+            )
             return tensordict
 
     return RandomPSOPolicy(dim)
@@ -177,7 +183,9 @@ def evaluate_policy(
     base_env = env.base_env if hasattr(env, "base_env") else env
 
     diversity_tracker = DiversityTracker(batch_index=0) if collect_diversity else None
-    info_tracker = InformationSpreadTracker(batch_index=0) if collect_info_spread else None
+    info_tracker = (
+        InformationSpreadTracker(batch_index=0) if collect_info_spread else None
+    )
 
     for ep in tqdm(range(num_episodes), desc=f"Evaluating {policy_name}"):
         if visualizer:
@@ -209,7 +217,10 @@ def evaluate_policy(
                     velocities=base_env.velocities,
                 )
 
-            if info_tracker is not None and base_env.neighborhood_best_scores is not None:
+            if (
+                info_tracker is not None
+                and base_env.neighborhood_best_scores is not None
+            ):
                 info_tracker.update(
                     personal_best_scores=base_env.personal_best_scores,
                     neighborhood_best_scores=base_env.neighborhood_best_scores,
@@ -260,8 +271,17 @@ def evaluate_policy(
     }
 
     # Roll up diversity
-    if collect_diversity and all_episode_histories and "diversity" in all_episode_histories[0]:
-        for key in ["mean_pairwise_dist", "position_spread", "velocity_alignment", "velocity_speed_std"]:
+    if (
+        collect_diversity
+        and all_episode_histories
+        and "diversity" in all_episode_histories[0]
+    ):
+        for key in [
+            "mean_pairwise_dist",
+            "position_spread",
+            "velocity_alignment",
+            "velocity_speed_std",
+        ]:
             ep_vals = [
                 float(np.mean(h["diversity"][key]))
                 for h in all_episode_histories
@@ -271,9 +291,21 @@ def evaluate_policy(
                 metrics[f"diversity_{key}"] = float(np.mean(ep_vals))
 
     # Roll up info-spread
-    if collect_info_spread and all_episode_histories and "info_spread" in all_episode_histories[0]:
-        for key in ["mean_adoption_fraction", "mean_information_entropy", "mean_adoption_rate"]:
-            ep_vals = [h["info_spread"].get(key, 0.0) for h in all_episode_histories if "info_spread" in h]
+    if (
+        collect_info_spread
+        and all_episode_histories
+        and "info_spread" in all_episode_histories[0]
+    ):
+        for key in [
+            "mean_adoption_fraction",
+            "mean_information_entropy",
+            "mean_adoption_rate",
+        ]:
+            ep_vals = [
+                h["info_spread"].get(key, 0.0)
+                for h in all_episode_histories
+                if "info_spread" in h
+            ]
             if ep_vals:
                 metrics[f"info_{key}"] = float(np.mean(ep_vals))
         for key in ["num_spread_events", "mean_steps_to_90pct"]:
@@ -295,20 +327,26 @@ def _print_metric_summary(policy_name: str, episode_histories: list) -> None:
         return
     div_rows = [h["diversity"] for h in episode_histories if "diversity" in h]
     isp_rows = [h["info_spread"] for h in episode_histories if "info_spread" in h]
-    print(f"\n  [{policy_name}] Metric summary over {len(episode_histories)} episode(s):")
+    print(
+        f"\n  [{policy_name}] Metric summary over {len(episode_histories)} episode(s):"
+    )
     if div_rows:
         for key, label in [
             ("mean_pairwise_dist", "Mean pairwise dist"),
-            ("position_spread",    "Position spread   "),
+            ("position_spread", "Position spread   "),
             ("velocity_alignment", "Velocity alignment"),
         ]:
             vals = [float(np.mean(r[key])) for r in div_rows if r.get(key)]
             if vals:
                 print(f"    {label}: {np.mean(vals):.4f} ± {np.std(vals):.4f}")
     if isp_rows:
-        adopt  = [r.get("mean_adoption_fraction", 0.0) for r in isp_rows]
+        adopt = [r.get("mean_adoption_fraction", 0.0) for r in isp_rows]
         events = [r.get("num_spread_events", 0) for r in isp_rows]
-        t90    = [r["mean_steps_to_90pct"] for r in isp_rows if r.get("mean_steps_to_90pct") is not None]
+        t90 = [
+            r["mean_steps_to_90pct"]
+            for r in isp_rows
+            if r.get("mean_steps_to_90pct") is not None
+        ]
         print(f"    Adoption fraction : {np.mean(adopt):.4f} ± {np.std(adopt):.4f}")
         print(f"    Spread events/ep  : {np.mean(events):.1f}")
         if t90:

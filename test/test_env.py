@@ -174,13 +174,22 @@ class TestPSOBasicFunctionality:
         action = TensorDict(
             {
                 "inertia": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
                 "cognitive": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
                 "social": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
             },
             batch_size=(basic_env.batch_size[0],),
@@ -203,7 +212,9 @@ class TestPSOBasicFunctionality:
         """
         transformed_env = TransformedEnv(
             basic_env,
-            RewardSum(in_keys=[basic_env.reward_key], out_keys=[("agents", "episode_reward")]),
+            RewardSum(
+                in_keys=[basic_env.reward_key], out_keys=[("agents", "episode_reward")]
+            ),
             device=basic_env.device,
         )
 
@@ -214,13 +225,22 @@ class TestPSOBasicFunctionality:
         action = TensorDict(
             {
                 "inertia": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
                 "cognitive": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
                 "social": torch.zeros(
-                    basic_env.batch_size[0], basic_env.num_agents, 2, device=basic_env.device
+                    basic_env.batch_size[0],
+                    basic_env.num_agents,
+                    2,
+                    device=basic_env.device,
                 ),
             },
             batch_size=(basic_env.batch_size[0],),

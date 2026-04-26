@@ -169,8 +169,14 @@ def aggregate_convergence_metrics(
 
     result: Dict[str, object] = {}
     scalar_keys = [
-        "auc", "time_to_50pct", "time_to_80pct", "time_to_90pct",
-        "time_to_99pct", "final_score", "improvement_rate", "plateau_fraction",
+        "auc",
+        "time_to_50pct",
+        "time_to_80pct",
+        "time_to_90pct",
+        "time_to_99pct",
+        "final_score",
+        "improvement_rate",
+        "plateau_fraction",
     ]
     for key in scalar_keys:
         vals = [ep[key] for ep in per_episode if ep[key] is not None]

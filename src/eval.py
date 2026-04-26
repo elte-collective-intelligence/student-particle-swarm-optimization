@@ -38,7 +38,6 @@ from eval_helpers import (
 # =============================================================================
 
 
-
 def compare_policies(metrics_list: list, output_dir: str):
     """
     Create comparison plots and save results.
@@ -111,9 +110,6 @@ def compare_policies(metrics_list: list, output_dir: str):
     print("=" * 70)
 
 
-
-
-
 def save_evaluation_metrics(
     output_dir: str,
     metrics_list: list,
@@ -142,8 +138,7 @@ def save_evaluation_metrics(
             }
         if "info_spread" in h:
             out["info_spread"] = {
-                k: v for k, v in h["info_spread"].items()
-                if not isinstance(v, list)
+                k: v for k, v in h["info_spread"].items() if not isinstance(v, list)
             }
         return out
 
@@ -164,14 +159,20 @@ def save_evaluation_metrics(
     # ------------------------------------------------------------------ CSV
     csv_path = os.path.join(output_dir, "eval_metrics_summary.csv")
     fieldnames = [
-        "policy_name", "episode",
+        "policy_name",
+        "episode",
         # diversity
-        "mean_pairwise_dist", "position_spread",
-        "velocity_alignment", "velocity_speed_std",
+        "mean_pairwise_dist",
+        "position_spread",
+        "velocity_alignment",
+        "velocity_speed_std",
         # information spread
-        "mean_adoption_fraction", "mean_information_entropy",
-        "num_spread_events", "mean_steps_to_50pct",
-        "mean_steps_to_90pct", "mean_adoption_rate",
+        "mean_adoption_fraction",
+        "mean_information_entropy",
+        "num_spread_events",
+        "mean_steps_to_50pct",
+        "mean_steps_to_90pct",
+        "mean_adoption_rate",
         "final_adoption_fraction",
     ]
     with open(csv_path, "w", newline="") as f:
@@ -183,16 +184,23 @@ def save_evaluation_metrics(
                 row: dict = {"policy_name": name, "episode": h["episode"]}
                 if "diversity" in h:
                     div = h["diversity"]
-                    for key in ["mean_pairwise_dist", "position_spread",
-                                "velocity_alignment", "velocity_speed_std"]:
+                    for key in [
+                        "mean_pairwise_dist",
+                        "position_spread",
+                        "velocity_alignment",
+                        "velocity_speed_std",
+                    ]:
                         vals = div.get(key, [])
                         row[key] = float(np.mean(vals)) if vals else ""
                 if "info_spread" in h:
                     isp = h["info_spread"]
                     for key in [
-                        "mean_adoption_fraction", "mean_information_entropy",
-                        "num_spread_events", "mean_steps_to_50pct",
-                        "mean_steps_to_90pct", "mean_adoption_rate",
+                        "mean_adoption_fraction",
+                        "mean_information_entropy",
+                        "num_spread_events",
+                        "mean_steps_to_50pct",
+                        "mean_steps_to_90pct",
+                        "mean_adoption_rate",
                         "final_adoption_fraction",
                     ]:
                         val = isp.get(key)
@@ -243,7 +251,7 @@ def main(cfg: DictConfig):
         )
 
     seed = cfg.get("seed", 42)
-    
+
     # Set seeds for reproducibility
     torch.manual_seed(seed)
     np.random.seed(seed)

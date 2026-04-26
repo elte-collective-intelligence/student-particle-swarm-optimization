@@ -188,7 +188,9 @@ def velocity_speed_std(velocities: torch.Tensor) -> torch.Tensor:
     """
     speeds = velocities.norm(dim=-1)  # (batch, n_agents)
     if speeds.shape[1] < 2:
-        return torch.zeros(speeds.shape[0], device=velocities.device, dtype=velocities.dtype)
+        return torch.zeros(
+            speeds.shape[0], device=velocities.device, dtype=velocities.dtype
+        )
     return speeds.std(dim=-1)  # (batch,)
 
 
@@ -331,7 +333,9 @@ class DiversityTracker:
         dict
             Scalar float values for the tracked batch element at this step.
         """
-        metrics = compute_diversity_metrics(positions, velocities, use_hull=self.use_hull)
+        metrics = compute_diversity_metrics(
+            positions, velocities, use_hull=self.use_hull
+        )
         step_vals: Dict[str, float] = {}
 
         for key, tensor in metrics.items():
@@ -350,8 +354,4 @@ class DiversityTracker:
 
     def mean_over_episode(self) -> Dict[str, float]:
         """Return the time-averaged value of each tracked metric."""
-        return {
-            k: float(np.mean(v))
-            for k, v in self._history.items()
-            if v
-        }
+        return {k: float(np.mean(v)) for k, v in self._history.items() if v}

@@ -49,4 +49,3 @@ __all__ = [
     "plot_summary_heatmap",
     "plot_radar_chart",
 ]
-

@@ -45,7 +45,6 @@ from eval_helpers import (
 )
 
 
-
 # =============================================================================
 # Topology-aware environment factory
 # =============================================================================
@@ -94,7 +93,10 @@ def _save_csv(output_dir: str, results: list) -> str:
     fieldnames_set: list = ["topology", "policy"]
     for res in results:
         for k in res.keys():
-            if k not in ("topology", "policy", "episode_histories") and k not in fieldnames_set:
+            if (
+                k not in ("topology", "policy", "episode_histories")
+                and k not in fieldnames_set
+            ):
                 fieldnames_set.append(k)
 
     with open(path, "w", newline="") as f:
@@ -110,17 +112,30 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
     """Per-episode CSV — one row per (topology, policy, episode)."""
     path = os.path.join(output_dir, "multi_topology_episodes.csv")
     fieldnames = [
-        "topology", "policy", "episode",
+        "topology",
+        "policy",
+        "episode",
         # convergence
-        "auc", "final_score", "improvement_rate", "plateau_fraction",
-        "time_to_50pct", "time_to_80pct", "time_to_90pct", "time_to_99pct",
+        "auc",
+        "final_score",
+        "improvement_rate",
+        "plateau_fraction",
+        "time_to_50pct",
+        "time_to_80pct",
+        "time_to_90pct",
+        "time_to_99pct",
         # diversity (episode means)
-        "mean_pairwise_dist", "position_spread",
-        "velocity_alignment", "velocity_speed_std",
+        "mean_pairwise_dist",
+        "position_spread",
+        "velocity_alignment",
+        "velocity_speed_std",
         # info-spread
-        "mean_adoption_fraction", "mean_information_entropy",
-        "num_spread_events", "mean_steps_to_50pct",
-        "mean_steps_to_90pct", "mean_adoption_rate",
+        "mean_adoption_fraction",
+        "mean_information_entropy",
+        "num_spread_events",
+        "mean_steps_to_50pct",
+        "mean_steps_to_90pct",
+        "mean_adoption_rate",
         "final_adoption_fraction",
     ]
 
@@ -144,17 +159,24 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
                 # diversity
                 if "diversity" in h:
                     div = h["diversity"]
-                    for key in ["mean_pairwise_dist", "position_spread",
-                                "velocity_alignment", "velocity_speed_std"]:
+                    for key in [
+                        "mean_pairwise_dist",
+                        "position_spread",
+                        "velocity_alignment",
+                        "velocity_speed_std",
+                    ]:
                         vals = div.get(key, [])
                         row[key] = float(np.mean(vals)) if vals else ""
                 # info-spread
                 if "info_spread" in h:
                     isp = h["info_spread"]
                     for key in [
-                        "mean_adoption_fraction", "mean_information_entropy",
-                        "num_spread_events", "mean_steps_to_50pct",
-                        "mean_steps_to_90pct", "mean_adoption_rate",
+                        "mean_adoption_fraction",
+                        "mean_information_entropy",
+                        "num_spread_events",
+                        "mean_steps_to_50pct",
+                        "mean_steps_to_90pct",
+                        "mean_adoption_rate",
                         "final_adoption_fraction",
                     ]:
                         val = isp.get(key)
@@ -169,9 +191,6 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
 # =============================================================================
 
 
-
-
-
 # =============================================================================
 # Console summary table
 # =============================================================================
@@ -180,12 +199,12 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
 def _print_summary_table(results: list) -> None:
     col_w = 18
     metric_keys = [
-        ("mean_final_score",                    "FinalScore"),
-        ("convergence_auc_mean",                "AUC"),
-        ("convergence_plateau_fraction_mean",   "Plateau"),
-        ("diversity_mean_pairwise_dist",        "Diversity"),
-        ("info_mean_adoption_fraction",         "Adoption"),
-        ("info_num_spread_events",              "SpreadEvts"),
+        ("mean_final_score", "FinalScore"),
+        ("convergence_auc_mean", "AUC"),
+        ("convergence_plateau_fraction_mean", "Plateau"),
+        ("diversity_mean_pairwise_dist", "Diversity"),
+        ("info_mean_adoption_fraction", "Adoption"),
+        ("info_num_spread_events", "SpreadEvts"),
     ]
     header = f"{'Topology':<20} {'Policy':<20}" + "".join(
         f"{lbl:>{col_w}}" for _, lbl in metric_keys
@@ -303,8 +322,11 @@ def main(cfg: DictConfig) -> None:
             "topology": topo_name,
             "policy": "Trained",
             **trained_metrics,
-            **{f"convergence_{k}": v for k, v in conv_agg.items()
-               if not isinstance(v, list)},
+            **{
+                f"convergence_{k}": v
+                for k, v in conv_agg.items()
+                if not isinstance(v, list)
+            },
             "convergence_mean_curve": conv_agg.get("mean_curve", []),
             "convergence_std_curve": conv_agg.get("std_curve", []),
             "episode_histories": trained_histories,
@@ -331,8 +353,11 @@ def main(cfg: DictConfig) -> None:
                 "topology": topo_name,
                 "policy": "Random",
                 **rand_metrics,
-                **{f"convergence_{k}": v for k, v in rand_conv_agg.items()
-                   if not isinstance(v, list)},
+                **{
+                    f"convergence_{k}": v
+                    for k, v in rand_conv_agg.items()
+                    if not isinstance(v, list)
+                },
                 "convergence_mean_curve": rand_conv_agg.get("mean_curve", []),
                 "convergence_std_curve": rand_conv_agg.get("std_curve", []),
                 "episode_histories": rand_histories,

@@ -284,7 +284,9 @@ def main(cfg: DictConfig) -> None:
                 max_steps=int(cfg.gif.max_steps),
             )
             rollout_by_topology[topology_name] = rollout
-            print(f"  Collected rollout for topology={topology_name} with {len(rollout)} steps")
+            print(
+                f"  Collected rollout for topology={topology_name} with {len(rollout)} steps"
+            )
 
         gif_frames = _render_side_by_side_frames(
             rollout_by_topology=rollout_by_topology,
