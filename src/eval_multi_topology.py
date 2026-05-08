@@ -10,7 +10,7 @@ function and random seed, then collects and compares:
 Usage (from repo root, inside Docker or venv):
     python src/eval_multi_topology.py
     python src/eval_multi_topology.py seed=123 env.landscape_function=rastrigin
-    python src/eval_multi_topology.py topologies=[global,ring]   # override subset
+    python src/eval_multi_topology.py topologies='[{name:global,type:global},{name:ring,type:ring,k:1}]'
 
 Docker helper:
     docker run --rm -it -v "${PWD}:/app" student_pso \\
@@ -400,6 +400,7 @@ def main(cfg: DictConfig) -> None:
         shutil.copy(original_model_path, model_path)
         print(f"Copied model to timestamped location: {model_path}")
     else:
+        model_path = original_model_path
         print(f"WARNING: original model not found at {original_model_path}")
 
     all_results: list = []
@@ -437,13 +438,13 @@ def main(cfg: DictConfig) -> None:
                     cfg.model.dropout,
                     device,
                 )
-                if os.path.exists(original_model_path):
-                    ckpt = torch.load(original_model_path, map_location=device)
+                if os.path.exists(model_path):
+                    ckpt = torch.load(model_path, map_location=device)
                     policy.load_state_dict(ckpt["policy_state_dict"])
-                    print(f"  Loaded model from {original_model_path}")
+                    print(f"  Loaded model from {model_path}")
                 else:
                     print(
-                        f"  WARNING: model not found at {original_model_path} - using random init"
+                        f"  WARNING: model not found at {model_path} - using random init"
                     )
                 policy.eval()
 
