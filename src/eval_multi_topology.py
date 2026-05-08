@@ -73,6 +73,20 @@ def _make_env(
     return env, landscape_fn
 
 
+def _prepare_model_path(
+    original_model_path: str, output_dir: str, timestamp: str
+) -> tuple[str, bool]:
+    """Copy the checkpoint into the run directory when available.
+
+    Returns the path that should be loaded and whether a copy was made.
+    """
+    if os.path.exists(original_model_path):
+        model_path = os.path.join(output_dir, f"best_model_{timestamp}.pt")
+        shutil.copy(original_model_path, model_path)
+        return model_path, True
+    return original_model_path, False
+
+
 # =============================================================================
 # Saving helpers
 # =============================================================================
@@ -395,12 +409,12 @@ def main(cfg: DictConfig) -> None:
     compare_random: bool = cfg.eval.get("compare_random", True)
 
     original_model_path = os.path.join(get_original_cwd(), cfg.model_path)
-    if os.path.exists(original_model_path):
-        model_path = os.path.join(output_dir, f"best_model_{timestamp}.pt")
-        shutil.copy(original_model_path, model_path)
+    model_path, copied_model = _prepare_model_path(
+        original_model_path, output_dir, timestamp
+    )
+    if copied_model:
         print(f"Copied model to timestamped location: {model_path}")
     else:
-        model_path = original_model_path
         print(f"WARNING: original model not found at {original_model_path}")
 
     all_results: list = []
