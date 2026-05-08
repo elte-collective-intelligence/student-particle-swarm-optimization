@@ -49,11 +49,13 @@ from eval_helpers import (
 # =============================================================================
 
 
-def _make_env(cfg: DictConfig, topology_cfg: dict, seed: int, device):
+def _make_env(
+    cfg: DictConfig, topology_cfg: dict, seed: int, device, landscape_name=None
+):
     """Build a fresh PSOEnv + TransformedEnv for one topology."""
-    landscape_fn = get_landscape_function(
-        cfg.env.landscape_function, cfg.env.landscape_dim
-    )
+    if landscape_name is None:
+        landscape_name = cfg.env.landscape_function
+    landscape_fn = get_landscape_function(landscape_name, cfg.env.landscape_dim)
     env = PSOEnv(
         landscape=landscape_fn,
         num_agents=cfg.env.num_agents,
@@ -111,6 +113,8 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
     """Per-episode CSV — one row per (topology, policy, episode)."""
     path = os.path.join(output_dir, "multi_topology_episodes.csv")
     fieldnames = [
+        "landscape",
+        "seed",
         "topology",
         "policy",
         "episode",
@@ -149,6 +153,8 @@ def _save_episode_csv(output_dir: str, results: list) -> str:
                 res.get("convergence_per_episode", []),
             ):
                 row: dict = {
+                    "landscape": res.get("landscape", ""),
+                    "seed": res.get("seed", ""),
                     "topology": topo,
                     "policy": pol,
                     "episode": h.get("episode", ""),
@@ -205,8 +211,14 @@ def _print_summary_table(results: list) -> None:
         ("info_mean_adoption_fraction", "Adoption"),
         ("info_num_spread_events", "SpreadEvts"),
     ]
-    header = f"{'Topology':<20} {'Policy':<20}" + "".join(
-        f"{lbl:>{col_w}}" for _, lbl in metric_keys
+    include_context = any("landscape" in res or "seed" in res for res in results)
+    prefix = ""
+    if include_context:
+        prefix = f"{'Landscape':<18} {'Seed':<8}"
+    header = (
+        prefix
+        + f"{'Topology':<20} {'Policy':<20}"
+        + "".join(f"{lbl:>{col_w}}" for _, lbl in metric_keys)
     )
     print("\n" + "=" * len(header))
     print("MULTI-TOPOLOGY EVALUATION SUMMARY")
@@ -214,7 +226,10 @@ def _print_summary_table(results: list) -> None:
     print(header)
     print("-" * len(header))
     for res in results:
-        row = f"{res['topology']:<20} {res['policy']:<20}"
+        row = ""
+        if include_context:
+            row += f"{res.get('landscape', ''):<18} {str(res.get('seed', '')):<8}"
+        row += f"{res['topology']:<20} {res['policy']:<20}"
         for key, _ in metric_keys:
             val = res.get(key, float("nan"))
             if isinstance(val, float):
@@ -223,6 +238,119 @@ def _print_summary_table(results: list) -> None:
                 row += f"{str(val):>{col_w}}"
         print(row)
     print("=" * len(header))
+
+
+def _mean_curve(curves: list[list[float]]) -> tuple[list[float], list[float]]:
+    valid = [curve for curve in curves if curve]
+    if not valid:
+        return [], []
+    max_len = max(len(curve) for curve in valid)
+    padded = np.array(
+        [curve + [curve[-1]] * (max_len - len(curve)) for curve in valid],
+        dtype=np.float64,
+    )
+    return padded.mean(axis=0).tolist(), padded.std(axis=0).tolist()
+
+
+def _aggregate_for_plots(results: list, landscape: str) -> list:
+    """Aggregate repeated seed rows into one row per topology and policy."""
+    aggregated = []
+    landscape_rows = [res for res in results if res.get("landscape") == landscape]
+    keys = sorted({(res["topology"], res["policy"]) for res in landscape_rows})
+
+    scalar_keys = [
+        "mean_final_score",
+        "std_final_score",
+        "mean_best_score",
+        "std_best_score",
+        "mean_cumulative_reward",
+        "std_cumulative_reward",
+        "diversity_mean_pairwise_dist",
+        "diversity_position_spread",
+        "diversity_velocity_alignment",
+        "diversity_velocity_speed_std",
+        "info_mean_adoption_fraction",
+        "info_mean_information_entropy",
+        "info_mean_adoption_rate",
+        "info_num_spread_events",
+        "info_mean_steps_to_90pct",
+        "convergence_auc_mean",
+        "convergence_improvement_rate_mean",
+        "convergence_plateau_fraction_mean",
+        "convergence_time_to_90pct_mean",
+    ]
+
+    for topology, policy in keys:
+        group = [
+            res
+            for res in landscape_rows
+            if res["topology"] == topology and res["policy"] == policy
+        ]
+        entry = {
+            "landscape": landscape,
+            "topology": topology,
+            "policy": policy,
+            "seeds": [res.get("seed") for res in group],
+            "episode_histories": [
+                history for res in group for history in res.get("episode_histories", [])
+            ],
+            "convergence_per_episode": [
+                conv for res in group for conv in res.get("convergence_per_episode", [])
+            ],
+        }
+        for key in scalar_keys:
+            values = [
+                res.get(key)
+                for res in group
+                if isinstance(res.get(key), (int, float))
+                and not np.isnan(float(res.get(key)))
+            ]
+            if values:
+                entry[key] = float(np.mean(values))
+
+        mean_curve, std_curve = _mean_curve(
+            [res.get("convergence_mean_curve", []) for res in group]
+        )
+        entry["convergence_mean_curve"] = mean_curve
+        entry["convergence_std_curve"] = std_curve
+        aggregated.append(entry)
+
+    return aggregated
+
+
+def _save_run_summary(
+    output_dir: str,
+    landscapes: list,
+    seeds: list,
+    topologies: list,
+    cfg: DictConfig,
+    results: list,
+) -> str:
+    path = os.path.join(output_dir, "README.md")
+    lines = [
+        "# Multi-Topology Evaluation Summary",
+        "",
+        f"Output directory: `{output_dir}`",
+        f"Landscapes: `{landscapes}`",
+        f"Seeds: `{seeds}`",
+        f"Topologies: `{[topo.get('name', topo.get('type')) for topo in topologies]}`",
+        f"Episodes per condition: `{cfg.eval.num_eval_episodes}`",
+        f"Steps per episode: `{cfg.eval.max_steps}`",
+        f"Policies: `Trained`"
+        + (" and `Random`" if cfg.eval.get("compare_random", True) else ""),
+        "",
+        "Generated files:",
+        "- `multi_topology_metrics.json`",
+        "- `multi_topology_metrics.csv`",
+        "- `multi_topology_episodes.csv`",
+        "- plot PNGs in this directory, or under `plots/<landscape>/` for sweeps",
+        "",
+        f"Metric rows: `{len(results)}`",
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"Saved summary: {path}")
+    return path
 
 
 # =============================================================================
@@ -237,25 +365,28 @@ def main(cfg: DictConfig) -> None:
     print("=" * 60)
     print(OmegaConf.to_yaml(cfg))
 
-    seed: int = int(cfg.get("seed", 42))
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device : {device}  |  Seed : {seed}")
-    print(f"Function : {cfg.env.landscape_function} ({cfg.env.landscape_dim}D)")
+    default_seed = int(cfg.get("seed", 42))
+    landscapes_cfg = cfg.get("landscapes", None)
+    if landscapes_cfg is None:
+        landscapes = [cfg.env.landscape_function]
+    else:
+        landscapes = list(landscapes_cfg)
+    seeds = [int(seed) for seed in cfg.get("seeds", [default_seed])]
+    topologies = OmegaConf.to_container(cfg.topologies, resolve=True)
+
+    print(f"Device : {device}")
+    print(f"Functions : {landscapes} ({cfg.env.landscape_dim}D)")
+    print(f"Seeds : {seeds}")
+    print(
+        "Conditions : "
+        f"{len(landscapes)} landscapes x {len(seeds)} seeds x {len(topologies)} topologies"
+    )
     print("=" * 60)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(get_original_cwd(), cfg.output_dir, timestamp)
     os.makedirs(output_dir, exist_ok=True)
-
-    # Create timestamped model path to ensure uniqueness
-    model_filename = f"best_model_{timestamp}.pt"
-    model_path = os.path.join(output_dir, model_filename)
 
     num_episodes: int = cfg.eval.num_eval_episodes
     max_steps: int = cfg.eval.max_steps
@@ -263,108 +394,126 @@ def main(cfg: DictConfig) -> None:
     collect_info: bool = cfg.eval.get("collect_info_spread", True)
     compare_random: bool = cfg.eval.get("compare_random", True)
 
-    # Copy original model to timestamped location for this evaluation run
     original_model_path = os.path.join(get_original_cwd(), cfg.model_path)
     if os.path.exists(original_model_path):
+        model_path = os.path.join(output_dir, f"best_model_{timestamp}.pt")
         shutil.copy(original_model_path, model_path)
         print(f"Copied model to timestamped location: {model_path}")
     else:
         print(f"WARNING: original model not found at {original_model_path}")
 
-    topologies = OmegaConf.to_container(cfg.topologies, resolve=True)
-
     all_results: list = []
 
-    for topo_def in topologies:
-        topo_name: str = topo_def.get("name", topo_def.get("type", "unknown"))
-        print(f"\n{'─'*60}")
-        print(f"  Topology: {topo_name}")
-        print(f"{'─'*60}")
+    for landscape_name in landscapes:
+        for seed in seeds:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
 
-        # Remove the "name" key before passing to PSOEnv (it only knows "type" etc.)
-        topology_cfg = {k: v for k, v in topo_def.items() if k != "name"}
+            for topo_def in topologies:
+                topo_name: str = topo_def.get("name", topo_def.get("type", "unknown"))
+                print(f"\n{'-'*60}")
+                print(
+                    f"  Function: {landscape_name} | Seed: {seed} | Topology: {topo_name}"
+                )
+                print(f"{'-'*60}")
 
-        env, landscape_fn = _make_env(cfg, topology_cfg, seed, device)
+                # Remove the "name" key before passing to PSOEnv.
+                topology_cfg = {k: v for k, v in topo_def.items() if k != "name"}
 
-        # Build trained policy
-        policy = create_policy(
-            env,
-            cfg.env.num_agents,
-            cfg.env.landscape_dim,
-            list(cfg.model.hidden_sizes),
-            cfg.model.share_params,
-            cfg.model.dropout,
-            device,
-        )
-        if os.path.exists(model_path):
-            ckpt = torch.load(model_path, map_location=device)
-            policy.load_state_dict(ckpt["policy_state_dict"])
-            print(f"  Loaded model from {model_path}")
-        else:
-            print(f"  WARNING: model not found at {model_path} — using random init")
-        policy.eval()
+                env, _ = _make_env(
+                    cfg, topology_cfg, seed, device, landscape_name=landscape_name
+                )
 
-        # ---- Evaluate trained policy ----
-        trained_metrics, trained_curves, trained_histories = evaluate_policy(
-            env,
-            policy,
-            num_episodes=num_episodes,
-            max_steps=max_steps,
-            policy_name=f"{topo_name}/Trained",
-            collect_diversity=collect_diversity,
-            collect_info_spread=collect_info,
-        )
-        conv_agg = aggregate_convergence_metrics(trained_curves)
-        conv_per_ep = [compute_episode_convergence(c) for c in trained_curves]
+                # Build trained policy
+                policy = create_policy(
+                    env,
+                    cfg.env.num_agents,
+                    cfg.env.landscape_dim,
+                    list(cfg.model.hidden_sizes),
+                    cfg.model.share_params,
+                    cfg.model.dropout,
+                    device,
+                )
+                if os.path.exists(original_model_path):
+                    ckpt = torch.load(original_model_path, map_location=device)
+                    policy.load_state_dict(ckpt["policy_state_dict"])
+                    print(f"  Loaded model from {original_model_path}")
+                else:
+                    print(
+                        f"  WARNING: model not found at {original_model_path} - using random init"
+                    )
+                policy.eval()
 
-        trained_row = {
-            "topology": topo_name,
-            "policy": "Trained",
-            **trained_metrics,
-            **{
-                f"convergence_{k}": v
-                for k, v in conv_agg.items()
-                if not isinstance(v, list)
-            },
-            "convergence_mean_curve": conv_agg.get("mean_curve", []),
-            "convergence_std_curve": conv_agg.get("std_curve", []),
-            "episode_histories": trained_histories,
-            "convergence_per_episode": conv_per_ep,
-        }
-        all_results.append(trained_row)
+                # ---- Evaluate trained policy ----
+                trained_metrics, trained_curves, trained_histories = evaluate_policy(
+                    env,
+                    policy,
+                    num_episodes=num_episodes,
+                    max_steps=max_steps,
+                    policy_name=f"{landscape_name}/{seed}/{topo_name}/Trained",
+                    collect_diversity=collect_diversity,
+                    collect_info_spread=collect_info,
+                )
+                conv_agg = aggregate_convergence_metrics(trained_curves)
+                conv_per_ep = [compute_episode_convergence(c) for c in trained_curves]
 
-        # ---- Evaluate random baseline ----
-        if compare_random:
-            rand_policy = create_random_policy(cfg.env.landscape_dim, device)
-            rand_metrics, rand_curves, rand_histories = evaluate_policy(
-                env,
-                rand_policy,
-                num_episodes=num_episodes,
-                max_steps=max_steps,
-                policy_name=f"{topo_name}/Random",
-                collect_diversity=collect_diversity,
-                collect_info_spread=collect_info,
-            )
-            rand_conv_agg = aggregate_convergence_metrics(rand_curves)
-            rand_conv_per_ep = [compute_episode_convergence(c) for c in rand_curves]
+                trained_row = {
+                    "landscape": landscape_name,
+                    "seed": seed,
+                    "topology": topo_name,
+                    "policy": "Trained",
+                    **trained_metrics,
+                    **{
+                        f"convergence_{k}": v
+                        for k, v in conv_agg.items()
+                        if not isinstance(v, list)
+                    },
+                    "convergence_mean_curve": conv_agg.get("mean_curve", []),
+                    "convergence_std_curve": conv_agg.get("std_curve", []),
+                    "episode_histories": trained_histories,
+                    "convergence_per_episode": conv_per_ep,
+                }
+                all_results.append(trained_row)
 
-            rand_row = {
-                "topology": topo_name,
-                "policy": "Random",
-                **rand_metrics,
-                **{
-                    f"convergence_{k}": v
-                    for k, v in rand_conv_agg.items()
-                    if not isinstance(v, list)
-                },
-                "convergence_mean_curve": rand_conv_agg.get("mean_curve", []),
-                "convergence_std_curve": rand_conv_agg.get("std_curve", []),
-                "episode_histories": rand_histories,
-                "convergence_per_episode": rand_conv_per_ep,
-            }
-            all_results.append(rand_row)
+                # ---- Evaluate random baseline ----
+                if compare_random:
+                    rand_policy = create_random_policy(cfg.env.landscape_dim, device)
+                    rand_metrics, rand_curves, rand_histories = evaluate_policy(
+                        env,
+                        rand_policy,
+                        num_episodes=num_episodes,
+                        max_steps=max_steps,
+                        policy_name=f"{landscape_name}/{seed}/{topo_name}/Random",
+                        collect_diversity=collect_diversity,
+                        collect_info_spread=collect_info,
+                    )
+                    rand_conv_agg = aggregate_convergence_metrics(rand_curves)
+                    rand_conv_per_ep = [
+                        compute_episode_convergence(c) for c in rand_curves
+                    ]
 
-        env.close()
+                    rand_row = {
+                        "landscape": landscape_name,
+                        "seed": seed,
+                        "topology": topo_name,
+                        "policy": "Random",
+                        **rand_metrics,
+                        **{
+                            f"convergence_{k}": v
+                            for k, v in rand_conv_agg.items()
+                            if not isinstance(v, list)
+                        },
+                        "convergence_mean_curve": rand_conv_agg.get("mean_curve", []),
+                        "convergence_std_curve": rand_conv_agg.get("std_curve", []),
+                        "episode_histories": rand_histories,
+                        "convergence_per_episode": rand_conv_per_ep,
+                    }
+                    all_results.append(rand_row)
+
+                env.close()
 
     # ----------------------------------------------------------------
     # Save results
@@ -385,9 +534,22 @@ def main(cfg: DictConfig) -> None:
         _save_csv(output_dir, all_results)
         _save_episode_csv(output_dir, all_results)
 
-    # Rich comparison plots (convergence, diversity, fitness dist, heatmap, radar)
-    plotter = ComparisonPlotter(all_results, output_dir)
-    plotter.plot_all()
+    # Rich comparison plots (convergence, diversity, fitness dist, heatmap, radar).
+    # For multi-seed/multi-landscape sweeps, aggregate repeated seed rows and
+    # save one plot set per landscape.
+    if len(landscapes) > 1 or len(seeds) > 1:
+        plots_dir = os.path.join(output_dir, "plots")
+        for landscape_name in landscapes:
+            landscape_plot_dir = os.path.join(plots_dir, landscape_name)
+            aggregated = _aggregate_for_plots(all_results, landscape_name)
+            plotter = ComparisonPlotter(aggregated, landscape_plot_dir)
+            plotter.plot_all()
+            _save_json(landscape_plot_dir, aggregated)
+    else:
+        plotter = ComparisonPlotter(all_results, output_dir)
+        plotter.plot_all()
+
+    _save_run_summary(output_dir, landscapes, seeds, topologies, cfg, all_results)
     print("\nMulti-topology evaluation complete!")
 
 
