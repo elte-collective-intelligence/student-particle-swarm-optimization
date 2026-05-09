@@ -350,7 +350,7 @@ def _save_run_summary(
         f"Topologies: `{[topo.get('name', topo.get('type')) for topo in topologies]}`",
         f"Episodes per condition: `{cfg.eval.num_eval_episodes}`",
         f"Steps per episode: `{cfg.eval.max_steps}`",
-        f"Policies: `Trained`"
+        "Policies: `Trained`"
         + (" and `Random`" if cfg.eval.get("compare_random", True) else ""),
         "",
         "Generated files:",
@@ -429,20 +429,19 @@ def main(cfg: DictConfig) -> None:
 
             for topo_def in topologies:
                 topo_name: str = topo_def.get("name", topo_def.get("type", "unknown"))
-                print(f"\n{'-'*60}")
+                print(f"\n{'-' * 60}")
                 print(
                     f"  Function: {landscape_name} | Seed: {seed} | Topology: {topo_name}"
                 )
-                print(f"{'-'*60}")
+                print(f"{'-' * 60}")
 
-                # Remove the "name" key before passing to PSOEnv.
                 topology_cfg = {k: v for k, v in topo_def.items() if k != "name"}
 
                 env, _ = _make_env(
                     cfg, topology_cfg, seed, device, landscape_name=landscape_name
                 )
 
-                # Build trained policy
+                # build trained policy
                 policy = create_policy(
                     env,
                     cfg.env.num_agents,
@@ -462,7 +461,7 @@ def main(cfg: DictConfig) -> None:
                     )
                 policy.eval()
 
-                # ---- Evaluate trained policy ----
+                # trained policy
                 trained_metrics, trained_curves, trained_histories = evaluate_policy(
                     env,
                     policy,
@@ -493,7 +492,7 @@ def main(cfg: DictConfig) -> None:
                 }
                 all_results.append(trained_row)
 
-                # ---- Evaluate random baseline ----
+                # random baseline
                 if compare_random:
                     rand_policy = create_random_policy(cfg.env.landscape_dim, device)
                     rand_metrics, rand_curves, rand_histories = evaluate_policy(
@@ -549,9 +548,6 @@ def main(cfg: DictConfig) -> None:
         _save_csv(output_dir, all_results)
         _save_episode_csv(output_dir, all_results)
 
-    # Rich comparison plots (convergence, diversity, fitness dist, heatmap, radar).
-    # For multi-seed/multi-landscape sweeps, aggregate repeated seed rows and
-    # save one plot set per landscape.
     if len(landscapes) > 1 or len(seeds) > 1:
         plots_dir = os.path.join(output_dir, "plots")
         for landscape_name in landscapes:
