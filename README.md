@@ -9,7 +9,7 @@
 
 **Welcome to Assignment 2!**
 
-This is your team's codebase for exploring **Particle Swarm Optimization (PSO)** through **Multi-Agent Reinforcement Learning**. Instead of using fixed PSO parameters, you'll train agents (particles) to *learn* optimal optimization strategies through interaction and rewards. Your swarm should cooperate to find global optima while adapting to dynamic, shifting landscapes!
+This is your team's codebase for exploring **Particle Swarm Optimization (PSO)** through **Multi-Agent Reinforcement Learning**. Instead of using fixed PSO parameters, you'll train agents (particles) to _learn_ optimal optimization strategies through interaction and rewards. Your swarm should cooperate to find global optima while adapting to dynamic, shifting landscapes!
 
 ![PSO Swarm](./assignment/pso.png)
 
@@ -39,7 +39,7 @@ Don't worry if it seems complex at first, this README will walk you through ever
 
 ### The Big Picture
 
-Imagine you're optimizing a complex function with many hills and valleys. Traditional PSO uses fixed formulas - but what if the particles could *learn* when to explore new areas vs. exploit known good regions? What if they could adapt to a landscape that changes over time?
+Imagine you're optimizing a complex function with many hills and valleys. Traditional PSO uses fixed formulas - but what if the particles could _learn_ when to explore new areas vs. exploit known good regions? What if they could adapt to a landscape that changes over time?
 
 This is **learned PSO**: each particle is an RL agent that outputs its own inertia, cognitive, and social coefficients based on what it observes.
 
@@ -91,30 +91,30 @@ Episode Flow:
 
 Each particle receives observations about its state:
 
-| Field | Shape | Description |
-|-------|-------|-------------|
-| **positions** | `[agents, dim]` | Current position in search space |
-| **velocities** | `[agents, dim]` | Current velocity vector |
-| **scores** | `[agents]` | Current fitness value (negated, higher=better) |
-| **personal_best_pos** | `[agents, dim]` | Best position found by this particle |
-| **personal_best_scores** | `[agents]` | Fitness at personal best |
-| **avg_pos** | `[agents, dim]` | Mean position of neighbors within δ radius |
-| **avg_vel** | `[agents, dim]` | Mean velocity of neighbors within δ radius |
+| Field                    | Shape           | Description                                    |
+| ------------------------ | --------------- | ---------------------------------------------- |
+| **positions**            | `[agents, dim]` | Current position in search space               |
+| **velocities**           | `[agents, dim]` | Current velocity vector                        |
+| **scores**               | `[agents]`      | Current fitness value (negated, higher=better) |
+| **personal_best_pos**    | `[agents, dim]` | Best position found by this particle           |
+| **personal_best_scores** | `[agents]`      | Fitness at personal best                       |
+| **avg_pos**              | `[agents, dim]` | Mean position of neighbors within δ radius     |
+| **avg_vel**              | `[agents, dim]` | Mean velocity of neighbors within δ radius     |
 
 ### What Do Agents Output?
 
 Each particle outputs 3 coefficient vectors:
 
-| Action | Shape | Description | Typical Range |
-|--------|-------|-------------|---------------|
-| **inertia** | `[agents, dim]` | Weight for previous velocity | 0.3 - 1.1 |
-| **cognitive** | `[agents, dim]` | Weight for personal best attraction | 0.5 - 2.5 |
-| **social** | `[agents, dim]` | Weight for social/neighbor attraction | 0.5 - 2.5 |
+| Action        | Shape           | Description                           | Typical Range |
+| ------------- | --------------- | ------------------------------------- | ------------- |
+| **inertia**   | `[agents, dim]` | Weight for previous velocity          | 0.3 - 1.1     |
+| **cognitive** | `[agents, dim]` | Weight for personal best attraction   | 0.5 - 2.5     |
+| **social**    | `[agents, dim]` | Weight for social/neighbor attraction | 0.5 - 2.5     |
 
 ### The PSO Update Equations
 
 ```python
-velocity = inertia * velocity 
+velocity = inertia * velocity
          + cognitive * (personal_best_pos - position)
          + social * avg_neighbor_pos
 
@@ -162,6 +162,7 @@ If you see training logs and "Training Complete!", you're good to go!
 ### What Just Happened?
 
 The `smoke_train` experiment:
+
 - Created a 2D sphere function landscape
 - Spawned 5 particles
 - Trained for 10 iterations (~5k frames)
@@ -219,17 +220,18 @@ The codebase comes with pre-configured experiments. Start with `smoke_train`, th
 
 ### Experiment Configurations
 
-| Name | Agents | Dims | Function | Iterations | Purpose |
-|------|--------|------|----------|------------|---------|
-| `smoke_train` | 5 | 2D | sphere | 10 | Quick sanity check (~1 min) |
-| `full_train` | 20 | 5D | sphere | 100 | Full training (~10 min) |
-| `rastrigin_train` | 10 | 2D | rastrigin | 50 | Multimodal function |
-| `dynamic_train` | 10 | 2D | dynamic_sphere | 50 | Moving optimum |
-| `eval_vis` | 10 | 2D | sphere | - | Visualization only |
+| Name              | Agents | Dims | Function       | Iterations | Purpose                     |
+| ----------------- | ------ | ---- | -------------- | ---------- | --------------------------- |
+| `smoke_train`     | 5      | 2D   | sphere         | 10         | Quick sanity check (~1 min) |
+| `full_train`      | 20     | 5D   | sphere         | 100        | Full training (~10 min)     |
+| `rastrigin_train` | 10     | 2D   | rastrigin      | 50         | Multimodal function         |
+| `dynamic_train`   | 10     | 2D   | dynamic_sphere | 50         | Moving optimum              |
+| `eval_vis`        | 10     | 2D   | sphere         | -          | Visualization only          |
 
 ### Running Experiments
 
 **With Docker:**
+
 ```bash
 docker run --rm --gpus=all \
   -v $(pwd):/app \
@@ -238,6 +240,7 @@ docker run --rm --gpus=all \
 ```
 
 **With Scripts:**
+
 ```bash
 # Single experiment
 ./scripts/run_experiment.sh smoke_train
@@ -247,6 +250,7 @@ docker run --rm --gpus=all \
 ```
 
 **Locally:**
+
 ```bash
 python src/main.py --config-path configs/experiments --config-name smoke_train
 ```
@@ -303,6 +307,7 @@ student-particle-swarm-optimization/
 ```
 
 **Every directory has a comprehensive README!** Each explains:
+
 - What each file does
 - How components interact
 - Usage examples
@@ -379,7 +384,7 @@ env:
   landscape_dim: 2
   num_agents: 10
   batch_size: 8
-  delta: 1.0                    # Neighborhood radius
+  delta: 1.0 # Neighborhood radius
   landscape_function: sphere
 
 # Training settings
@@ -422,13 +427,13 @@ python src/main.py --config-path configs/experiments --config-name my_experiment
 
 ### Key Parameters to Tune
 
-| Parameter | Effect | Recommendation |
-|-----------|--------|----------------|
-| `env.num_agents` | More particles = better exploration | 10-50 |
-| `env.delta` | Neighborhood radius | 0.5-2.0 |
-| `model.hidden_sizes` | Network capacity | [64,64] or [128,128] |
-| `clip_epsilon` | PPO conservatism | 0.1-0.3 |
-| `entropy_coef` | Exploration bonus | 0.01-0.1 |
+| Parameter            | Effect                              | Recommendation       |
+| -------------------- | ----------------------------------- | -------------------- |
+| `env.num_agents`     | More particles = better exploration | 10-50                |
+| `env.delta`          | Neighborhood radius                 | 0.5-2.0              |
+| `model.hidden_sizes` | Network capacity                    | [64,64] or [128,128] |
+| `clip_epsilon`       | PPO conservatism                    | 0.1-0.3              |
+| `entropy_coef`       | Exploration bonus                   | 0.01-0.1             |
 
 ---
 
@@ -438,13 +443,13 @@ Evaluation was conducted on various benchmark functions. Below are animated visu
 
 ### Evaluation Metrics Summary
 
-| Landscape | Agents | Dims | Best Score | Final Score | Vs Random |
-|-----------|--------|------|------------|-------------|-----------|
-| **Sphere** | 10 | 2D | -0.085 | -0.085 ± 0.17 | ✅ Converges to optimum |
-| **Rastrigin** | 10 | 2D | -0.716 | -7.64 ± 5.63 | ✅ Navigates local minima |
-| **Dynamic Sphere** | 10 | 2D | -0.004 | -1.82 ± 1.21 | ✅ Tracks moving target |
+| Landscape          | Agents | Dims | Best Score | Final Score   | Vs Random                 |
+| ------------------ | ------ | ---- | ---------- | ------------- | ------------------------- |
+| **Sphere**         | 10     | 2D   | -0.085     | -0.085 ± 0.17 | ✅ Converges to optimum   |
+| **Rastrigin**      | 10     | 2D   | -0.716     | -7.64 ± 5.63  | ✅ Navigates local minima |
+| **Dynamic Sphere** | 10     | 2D   | -0.004     | -1.82 ± 1.21  | ✅ Tracks moving target   |
 
-*Note: Scores are negated (higher = better). Best score shows optimal value found.*
+_Note: Scores are negated (higher = better). Best score shows optimal value found._
 
 ---
 
@@ -491,6 +496,7 @@ The simplest test function - particles should converge quickly to the origin.
 </table>
 
 **Observations:**
+
 - Particles quickly identify the global optimum at origin
 - Velocities decrease as swarm converges
 - Final best score approaches 0 (perfect)
@@ -521,6 +527,7 @@ A challenging function with many local minima - tests exploration vs exploitatio
 </table>
 
 **Observations:**
+
 - Particles explore multiple basins before settling
 - Some particles get trapped in local minima
 - Learned coefficients help escape local optima better than fixed PSO
@@ -536,6 +543,7 @@ The optimum moves in a circular path - tests adaptive tracking.
 ![Dynamic Sphere 2D](images/dynamic_sphere_2d.gif)
 
 **Observations:**
+
 - Swarm tracks the moving optimum (circular trajectory)
 - Agents maintain exploration to avoid losing the target
 - Demonstrates adaptation to non-stationary environments
@@ -596,6 +604,35 @@ python src/eval.py model_path=src/outputs/sphere_full/policy.pt \
     visualization.save_gif=true
 ```
 
+### Multi-Topology Evaluation
+
+Use `src/eval_multi_topology.py` to compare communication topologies with the same trained policy. The default config runs all topology entries from `src/configs/eval_multi_topology.yaml` on one landscape and one seed.
+
+```bash
+# Default multi-topology comparison
+python src/eval_multi_topology.py
+
+# Override the landscape or seed
+python src/eval_multi_topology.py env.landscape_function=rastrigin seed=123
+
+# Override the topology subset
+python src/eval_multi_topology.py \
+  topologies='[{name:global,type:global},{name:ring,type:ring,k:1}]'
+```
+
+For a full sweep, use `src/configs/topology_sweep.yaml`. It runs 4 topologies x 3 landscapes x 5 seeds by default:
+
+```bash
+python src/eval_multi_topology.py --config-name topology_sweep
+
+# Quick smoke run with the same condition grid
+python src/eval_multi_topology.py --config-name topology_sweep \
+  eval.num_eval_episodes=1 \
+  eval.max_steps=10
+```
+
+Results are written under `src/outputs/eval_multi/<timestamp>/` for the default config and `src/outputs/topology_sweep/<timestamp>` for the sweep config. The script writes metric JSON/CSV files, per-episode CSV rows, a run `README.md`, and comparison plots. Multi-landscape or multi-seed runs also create `plots/<landscape>/` directories with seed-aggregated plots per landscape.
+
 ---
 
 ## Visualization
@@ -603,19 +640,24 @@ python src/eval.py model_path=src/outputs/sphere_full/policy.pt \
 The visualization module creates animated views of swarm behavior.
 
 ### 2D Animation
+
 Shows particles on landscape contours with:
+
 - Particle positions (colored dots)
 - Velocity vectors (arrows)
 - Personal bests (small markers)
 - Global best (star)
 
 ### 3D Animation
+
 For 2D search spaces, shows particles on the 3D surface with rotating camera.
 
 ### Trajectory Plot
+
 Static plot showing paths each particle took during optimization.
 
 ### Convergence Plot
+
 Best and mean fitness over time.
 
 ### Generating Visualizations
@@ -649,19 +691,23 @@ python src/generate_side_by_side_gifs.py \
 ### Common Issues
 
 #### Training doesn't learn (rewards stay ~0)
+
 - **Cause**: Network outputs are near 0, but PSO needs specific coefficient ranges
 - **Solution**: Ensure `transform_actions=True` in `PSOActionExtractor`
 
 #### CUDA out of memory
+
 - Reduce `frames_per_batch` or `env.batch_size`
 - Use smaller `model.hidden_sizes`
 
 #### Particles explode (positions go to infinity)
+
 - Reduce learning rate
 - Check velocity clamping in environment
 - Use gradient clipping (`max_grad_norm`)
 
 #### Poor performance on multimodal functions
+
 - Increase `entropy_coef` for more exploration
 - Use more particles (`env.num_agents`)
 - Try larger `env.delta` for more information sharing
@@ -679,13 +725,13 @@ python src/generate_side_by_side_gifs.py \
 
 ### Landscape Functions
 
-| Function | Formula | Optimum | Difficulty |
-|----------|---------|---------|------------|
-| `sphere` | `f(x) = Σ x_i²` | f(0) = 0 | Easy |
-| `rastrigin` | `f(x) = 10n + Σ[x_i² - 10cos(2πx_i)]` | f(0) = 0 | Hard |
-| `eggholder` | Complex (see code) | Known | Hard |
-| `dynamic_sphere` | Sphere with moving center | Tracks | Medium |
-| `dynamic_rastrigin` | Rastrigin with oscillating amplitude | Adapts | Very Hard |
+| Function            | Formula                               | Optimum  | Difficulty |
+| ------------------- | ------------------------------------- | -------- | ---------- |
+| `sphere`            | `f(x) = Σ x_i²`                       | f(0) = 0 | Easy       |
+| `rastrigin`         | `f(x) = 10n + Σ[x_i² - 10cos(2πx_i)]` | f(0) = 0 | Hard       |
+| `eggholder`         | Complex (see code)                    | Known    | Hard       |
+| `dynamic_sphere`    | Sphere with moving center             | Tracks   | Medium     |
+| `dynamic_rastrigin` | Rastrigin with oscillating amplitude  | Adapts   | Very Hard  |
 
 ### PPO Implementation Details
 
@@ -700,14 +746,14 @@ python src/generate_side_by_side_gifs.py \
 def get_neighborhood_avg(positions, velocities, delta):
     # Compute pairwise distances
     dist = pairwise_distance(positions)
-    
+
     # Mask for neighbors within delta
     neighbor_mask = (dist <= delta)
-    
+
     # Average position/velocity of neighbors
     avg_pos = masked_mean(positions, neighbor_mask)
     avg_vel = masked_mean(velocities, neighbor_mask)
-    
+
     return avg_pos, avg_vel
 ```
 
@@ -716,14 +762,17 @@ def get_neighborhood_avg(positions, velocities, delta):
 ## References
 
 ### PSO Papers
+
 - Kennedy & Eberhart (1995) - Original PSO
 - Shi & Eberhart (1998) - Inertia weight
 
 ### RL Papers
+
 - Schulman et al. (2017) - [PPO](https://arxiv.org/abs/1707.06347)
 - Lowe et al. (2017) - [MADDPG](https://arxiv.org/abs/1706.02275)
 
 ### Dynamic Optimization
+
 - Blackwell (2007) - Dynamic PSO
 
 ---

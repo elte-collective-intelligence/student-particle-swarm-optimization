@@ -6,19 +6,22 @@ This directory contains all configuration files for the project, organized by ty
 
 ```
 configs/
-├── config.yaml           # Default training configuration
-├── eval_config.yaml      # Default evaluation configuration
-├── env/                  # Environment configurations
-├── model/                # Model/agent configurations
-├── topology/             # Topology configs (global/ring/von_neumann/knearest)
-├── experiments/          # Complete experiment configurations
-├── visualization/        # Visualization settings
-└── eval/                 # Evaluation settings
+├── config.yaml                 # Default training configuration
+├── eval_config.yaml            # Default evaluation configuration
+├── eval_multi_topology.yaml    # Default side-by-side topology evaluation configuration
+├── topology_sweep.yaml         # Full topology x landscape x seed sweep configuration
+├── env/                        # Environment configurations
+├── model/                      # Model/agent configurations
+├── topology/                   # Topology configs (global/ring/von_neumann/knearest)
+├── experiments/                # Complete experiment configurations
+├── visualization/              # Visualization settings
+└── eval/                       # Evaluation settings
 ```
 
 ## Configuration Hierarchy
 
 Hydra merges configurations in order:
+
 1. **Base Config** (`config.yaml` or `eval_config.yaml`)
 2. **Defaults** (from `defaults:` block)
 3. **Experiment Overrides** (experiment-specific values)
@@ -28,20 +31,23 @@ Hydra merges configurations in order:
 ## Environment Configurations (`env/`)
 
 ### `swarm.yaml`
+
 **PSO environment configuration.** Specifies:
+
 ```yaml
-n_particles: 10          # Number of particles in swarm
-n_dims: 2                # Dimensionality of search space
-max_steps: 100           # Maximum steps per episode
-bounds: [-5.0, 5.0]      # Search space boundaries
-objective_function: sphere  # Optimization function
+n_particles: 10 # Number of particles in swarm
+n_dims: 2 # Dimensionality of search space
+max_steps: 100 # Maximum steps per episode
+bounds: [-5.0, 5.0] # Search space boundaries
+objective_function: sphere # Optimization function
 
 # Reward configuration
-reward_type: fitness     # 'fitness' or 'improvement'
-normalize_rewards: true  # Normalize to [-1, 1]
+reward_type: fitness # 'fitness' or 'improvement'
+normalize_rewards: true # Normalize to [-1, 1]
 ```
 
 **Key Parameters:**
+
 - `n_particles`: Swarm size
   - More particles → better exploration, slower training
   - Typical: 10-50 particles
@@ -71,30 +77,70 @@ Each file provides a shared schema for easier overrides:
 - `rows`, `cols`
 - `grid_shape` rules
 
+## Multi-Topology Evaluation Configurations
+
+### `eval_multi_topology.yaml`
+
+Default side-by-side topology evaluation. It evaluates all entries in `topologies` on the single `env.landscape_function` and `seed` values:
+
+```bash
+python src/eval_multi_topology.py
+python src/eval_multi_topology.py env.landscape_function=rastrigin seed=123
+```
+
+Topology overrides must be dictionaries because each entry is passed to the topology factory:
+
+```bash
+python src/eval_multi_topology.py \
+  topologies='[{name:global,type:global},{name:ring,type:ring,k:1}]'
+```
+
+### `topology_sweep.yaml`
+
+Full sweep configuration. By default it runs:
+
+- 4 topologies: `global`, `ring`, `von_neumann`, `knearest`
+- 3 landscapes: `sphere`, `rastrigin`, `dynamic_sphere`
+- 5 seeds: `0, 1, 2, 3, 4`
+
+```bash
+python src/eval_multi_topology.py --config-name topology_sweep
+
+# Faster validation run
+python src/eval_multi_topology.py --config-name topology_sweep \
+  eval.num_eval_episodes=1 \
+  eval.max_steps=10
+```
+
+The default output directories are `src/outputs/eval_multi/<timestamp>/` and `src/outputs/topology_sweep/<timestamp>/`. Multi-seed or multi-landscape runs write seed-aggregated comparison plots under `plots/<landscape>/`.
+
 ## Model Configurations (`model/`)
 
 ### `ppo.yaml`
+
 **PPO agent configuration.** Specifies:
+
 ```yaml
 # Architecture
-hidden_sizes: [64, 64]   # MLP hidden layer sizes
-activation: tanh         # Activation function
+hidden_sizes: [64, 64] # MLP hidden layer sizes
+activation: tanh # Activation function
 
 # PPO Parameters
-clip_epsilon: 0.2        # PPO clipping parameter
-lr: 0.0003               # Learning rate
-gamma: 0.99              # Discount factor
-gae_lambda: 0.95         # GAE parameter
+clip_epsilon: 0.2 # PPO clipping parameter
+lr: 0.0003 # Learning rate
+gamma: 0.99 # Discount factor
+gae_lambda: 0.95 # GAE parameter
 
 # Training
-n_envs: 8                # Parallel environments
-frames_per_batch: 1000   # Frames collected per update
-total_frames: 100000     # Total training frames
-n_epochs: 4              # Update epochs per batch
-batch_size: 256          # Minibatch size
+n_envs: 8 # Parallel environments
+frames_per_batch: 1000 # Frames collected per update
+total_frames: 100000 # Total training frames
+n_epochs: 4 # Update epochs per batch
+batch_size: 256 # Minibatch size
 ```
 
 **Key Parameters:**
+
 - `clip_epsilon`: Controls policy update magnitude
   - Standard: 0.1-0.3
   - Lower → more conservative updates
@@ -109,7 +155,9 @@ batch_size: 256          # Minibatch size
 ## Visualization Configurations (`visualization/`)
 
 ### `default.yaml`
+
 **Standard visualization settings:**
+
 ```yaml
 enabled: true
 save_gifs: true
@@ -119,7 +167,9 @@ dpi: 100
 ```
 
 ### `full.yaml`
+
 **Complete visualization with high quality:**
+
 ```yaml
 enabled: true
 save_gifs: true
@@ -132,7 +182,9 @@ animation_interval: 50
 ```
 
 ### `none.yaml`
+
 **Disable all visualization (faster training):**
+
 ```yaml
 enabled: false
 save_gifs: false
@@ -142,21 +194,27 @@ save_plots: false
 ## Evaluation Configurations (`eval/`)
 
 ### `default.yaml`
+
 **Standard evaluation settings:**
+
 ```yaml
 num_episodes: 10
 compare_to_random: true
 ```
 
 ### `smoke.yaml`
+
 **Quick evaluation for testing:**
+
 ```yaml
 num_episodes: 3
 compare_to_random: true
 ```
 
 ### `full.yaml`
+
 **Comprehensive evaluation:**
+
 ```yaml
 num_episodes: 100
 compare_to_random: true
@@ -167,27 +225,37 @@ compare_to_random: true
 Complete experiment setups that combine base configs with specific overrides.
 
 ### `smoke_train.yaml`
+
 **Quick training test (~1 min):**
+
 - 10k frames, 5 particles, 2D
 - Good for testing setup
 
 ### `full_train.yaml`
+
 **Full training run (~30 min):**
+
 - 500k frames, 20 particles, 5D
 - Production training
 
 ### `dynamic_train.yaml`
+
 **Dynamic function training:**
+
 - Function changes during training
 - Tests generalization
 
 ### `rastrigin_train.yaml`
+
 **Multimodal function training:**
+
 - Tests exploration capability
 - Harder optimization target
 
 ### `eval_vis.yaml`
+
 **Evaluation with visualization:**
+
 - Runs trained model
 - Generates GIFs and plots
 
@@ -196,16 +264,19 @@ See [experiments/README.md](experiments/README.md) for detailed experiment descr
 ## Usage Examples
 
 ### Default Training
+
 ```bash
 python src/main.py
 ```
 
 ### Experiment Config
+
 ```bash
 python src/main.py --config-path configs/experiments --config-name smoke_train
 ```
 
 ### Override Parameters
+
 ```bash
 # Change number of particles
 python src/main.py env.n_particles=20
@@ -218,6 +289,7 @@ python src/main.py env.n_dims=10 model.total_frames=500000
 ```
 
 ### List Available Configs
+
 ```bash
 # Experiments
 ls src/configs/experiments/
@@ -229,6 +301,7 @@ ls src/configs/visualization/
 ## Creating New Experiments
 
 1. Create new YAML file in `experiments/`:
+
 ```yaml
 # experiments/my_experiment.yaml
 defaults:
@@ -244,6 +317,7 @@ model:
 ```
 
 2. Run the experiment:
+
 ```bash
 python src/main.py --config-path configs/experiments --config-name my_experiment
 ```
@@ -251,16 +325,19 @@ python src/main.py --config-path configs/experiments --config-name my_experiment
 ## Configuration Tips
 
 ### Performance Tuning
+
 - Increase `n_envs` for faster data collection
 - Reduce `total_frames` for quick tests
 - Use `visualization: none` during training
 
 ### Debugging
+
 - Set `verbose: true` in logger config
 - Reduce `frames_per_batch` for more frequent updates
 - Use small `n_particles` and `n_dims`
 
 ### Reproducibility
+
 - Set `seed` in experiment config
 - Use fixed `n_envs` (affects batching)
 - Log full config with Hydra
