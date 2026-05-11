@@ -298,6 +298,19 @@ ls src/configs/experiments/
 ls src/configs/visualization/
 ```
 
+### Experimental Matrix Sweep
+```bash
+python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --multirun
+```
+
+This preset expands to:
+- `env.landscape_function = sphere, rastrigin, dynamic_sphere`
+- `env.landscape_dim = 2, 10`
+- `seed = 11, 22, 33, 44, 55`
+
+Each Hydra job evaluates all four topology settings side-by-side, so the full
+assignment matrix covers `4 x 3 x 2 x 5 = 120` topology conditions.
+
 ## Creating New Experiments
 
 1. Create new YAML file in `experiments/`:

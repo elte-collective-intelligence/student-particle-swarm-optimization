@@ -42,6 +42,8 @@ from eval_helpers import (
     create_policy,
     create_random_policy,
     evaluate_policy,
+    load_policy_checkpoint,
+    resolve_model_path,
 )
 
 # =============================================================================
@@ -398,6 +400,8 @@ def main(cfg: DictConfig) -> None:
     )
     print("=" * 60)
 
+    resolved_model_path = resolve_model_path(cfg, get_original_cwd())
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(get_original_cwd(), cfg.output_dir, timestamp)
     os.makedirs(output_dir, exist_ok=True)
@@ -408,14 +412,13 @@ def main(cfg: DictConfig) -> None:
     collect_info: bool = cfg.eval.get("collect_info_spread", True)
     compare_random: bool = cfg.eval.get("compare_random", True)
 
-    original_model_path = os.path.join(get_original_cwd(), cfg.model_path)
     model_path, copied_model = _prepare_model_path(
-        original_model_path, output_dir, timestamp
+        resolved_model_path, output_dir, timestamp
     )
     if copied_model:
         print(f"Copied model to timestamped location: {model_path}")
     else:
-        print(f"WARNING: original model not found at {original_model_path}")
+        print(f"WARNING: original model not found at {resolved_model_path}")
 
     all_results: list = []
 
@@ -451,14 +454,13 @@ def main(cfg: DictConfig) -> None:
                     cfg.model.dropout,
                     device,
                 )
-                if os.path.exists(model_path):
-                    ckpt = torch.load(model_path, map_location=device)
-                    policy.load_state_dict(ckpt["policy_state_dict"])
-                    print(f"  Loaded model from {model_path}")
-                else:
-                    print(
-                        f"  WARNING: model not found at {model_path} - using random init"
-                    )
+                load_policy_checkpoint(
+                    policy=policy,
+                    model_path=model_path,
+                    device=device,
+                    expected_input_dim=2 * int(cfg.env.landscape_dim),
+                )
+                print(f"  Loaded model from {model_path}")
                 policy.eval()
 
                 # trained policy

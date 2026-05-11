@@ -6,6 +6,7 @@ Extracted here to avoid circular imports and code duplication.
 
 from __future__ import annotations
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -72,6 +73,74 @@ def get_landscape_function(name: str, dim: int):
 # =============================================================================
 # Policy helpers
 # =============================================================================
+
+
+def resolve_model_path(cfg, original_cwd: str) -> str:
+    """Resolve the checkpoint path for the active evaluation config.
+
+    Supports either:
+      - cfg.model_path: fixed relative path
+      - cfg.model_path_template: formatted per sweep point using
+        {landscape_function}, {landscape_dim}, {seed}, {num_agents}
+    """
+    template = cfg.get("model_path_template", None)
+    if template:
+        model_rel_path = str(template).format(
+            landscape_function=str(cfg.env.landscape_function),
+            landscape_dim=int(cfg.env.landscape_dim),
+            seed=int(cfg.get("seed", 42)),
+            num_agents=int(cfg.env.num_agents),
+        )
+    else:
+        model_rel_path = str(cfg.model_path)
+    return os.path.join(original_cwd, model_rel_path)
+
+
+def _get_checkpoint_policy_input_width(state_dict: dict) -> int | None:
+    """Infer the first policy layer input width from a saved state_dict."""
+    preferred_suffix = "params.0.weight"
+    for key, value in state_dict.items():
+        if (
+            key.endswith(preferred_suffix)
+            and hasattr(value, "shape")
+            and value.ndim == 2
+        ):
+            return int(value.shape[1])
+
+    for value in state_dict.values():
+        if hasattr(value, "shape") and value.ndim == 2:
+            return int(value.shape[1])
+
+    return None
+
+
+def load_policy_checkpoint(policy, model_path: str, device, expected_input_dim: int):
+    """Load a policy checkpoint and validate its input dimensionality."""
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(
+            f"Model checkpoint not found: {model_path}. "
+            "Train a compatible model first or override model_path/model_path_template."
+        )
+
+    checkpoint = torch.load(model_path, map_location=device)
+    state_dict = checkpoint["policy_state_dict"]
+    saved_input_dim = _get_checkpoint_policy_input_width(state_dict)
+
+    if saved_input_dim is not None and saved_input_dim != expected_input_dim:
+        saved_landscape_dim = saved_input_dim // 2
+        expected_landscape_dim = expected_input_dim // 2
+        raise ValueError(
+            "Checkpoint/policy shape mismatch. "
+            f"Checkpoint '{model_path}' was trained with input width {saved_input_dim} "
+            f"(likely landscape_dim={saved_landscape_dim}), but the current evaluation "
+            f"expects input width {expected_input_dim} "
+            f"(landscape_dim={expected_landscape_dim}). "
+            "Use a checkpoint trained for this landscape dimensionality, or set "
+            "model_path_template so each sweep point resolves to its own compatible checkpoint."
+        )
+
+    policy.load_state_dict(state_dict)
+    return checkpoint
 
 
 def create_policy(env, num_agents, dim, hidden_sizes, share_params, dropout, device):

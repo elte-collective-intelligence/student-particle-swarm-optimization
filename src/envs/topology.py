@@ -131,7 +131,12 @@ class GlobalBestTopology(Topology):
     """Fully connected topology (gBest)."""
 
     def build_adjacency(self, positions: Optional[torch.Tensor] = None) -> torch.Tensor:
-        return torch.ones((self.num_particles, self.num_particles), dtype=torch.bool)
+        adjacency = torch.ones(
+            (self.num_particles, self.num_particles), dtype=torch.bool
+        )
+        if not self.include_self:
+            adjacency.fill_diagonal_(False)
+        return adjacency
 
 
 class RingTopology(Topology):

@@ -1,0 +1,65 @@
+# Training preset for the multi-topology evaluation matrix.
+#
+# Produces one compatible checkpoint per
+#   {landscape_function} x {landscape_dim}
+# combination, using the same swarm size as the evaluation matrix.
+#
+# Example:
+#   python src/main.py --config-path configs/experiments --config-name matrix_train --multirun
+
+hydra:
+  mode: MULTIRUN
+  run:
+    dir: src/outputs/matrix_train_runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: src/outputs/matrix_train_runs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${env.landscape_function}_${env.landscape_dim}d
+  sweeper:
+    params:
+      env.landscape_function: sphere,rastrigin,dynamic_sphere
+      env.landscape_dim: 2,10
+
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0001
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 12
+  batch_size: 32
+  delta: 1.0
+  landscape_function: sphere
+
+topology:
+  type: knearest
+  k: 2
+  recompute_interval: 5
+  rows: null
+  cols: null
+  grid_shape:
+    rows: null
+    cols: null
+    rule: infer_if_missing
+  symmetric: true
+  include_self: true
+
+frames_per_batch: 4096
+minibatch_size: 256
+n_iters: 200
+num_epochs: 4
+max_grad_norm: 0.5
+clip_epsilon: 0.2
+entropy_coef: 0.01
+gamma: 0.99
+lmbda: 0.9
+
+output_dir: src/outputs/matrix_train/${env.landscape_function}_${env.landscape_dim}d
+save_model: true
+save_plot: true
+seed: 42

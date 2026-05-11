@@ -30,6 +30,8 @@ from eval_helpers import (
     create_policy,
     create_random_policy,
     evaluate_policy,
+    load_policy_checkpoint,
+    resolve_model_path,
 )
 
 # =============================================================================
@@ -238,7 +240,7 @@ def main(cfg: DictConfig):
     compare_random = cfg.eval.compare_random
     save_metrics = cfg.eval.save_metrics
 
-    model_path = os.path.join(get_original_cwd(), cfg.model_path)
+    model_path = resolve_model_path(cfg, get_original_cwd())
     output_dir = os.path.join(get_original_cwd(), cfg.output_dir)
 
     # Visualization config
@@ -302,14 +304,15 @@ def main(cfg: DictConfig):
         env, num_agents, landscape_dim, hidden_sizes, share_params, dropout, device
     )
 
-    if os.path.exists(model_path):
-        checkpoint = torch.load(model_path, map_location=device)
-        policy.load_state_dict(checkpoint["policy_state_dict"])
-        print(f"Loaded model from {model_path}")
-        print(f"  Training iteration: {checkpoint.get('iteration', 'unknown')}")
-        print(f"  Training reward: {checkpoint.get('reward', 'unknown'):.3f}")
-    else:
-        print(f"WARNING: Model not found at {model_path}, using random initialization")
+    checkpoint = load_policy_checkpoint(
+        policy=policy,
+        model_path=model_path,
+        device=device,
+        expected_input_dim=2 * landscape_dim,
+    )
+    print(f"Loaded model from {model_path}")
+    print(f"  Training iteration: {checkpoint.get('iteration', 'unknown')}")
+    print(f"  Training reward: {checkpoint.get('reward', 'unknown'):.3f}")
 
     policy.eval()
 

@@ -1,0 +1,134 @@
+# Full experimental matrix for topology comparison.
+# Covers:
+#   - 4 topologies per run (global, ring, von_neumann, knearest)
+#   - 3 landscape types (sphere, rastrigin, dynamic_sphere)
+#   - 5 seeds
+#   - 2 dimensionality settings (2D low-D, 10D high-D)
+#
+# Usage:
+#   python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --multirun
+#
+# This produces 30 Hydra jobs:
+#   3 landscapes x 2 dimensions x 5 seeds
+# Each job internally evaluates all 4 topologies side-by-side.
+#
+# Important:
+#   A single 2D checkpoint cannot be reused for 10D runs. This preset expects
+#   one trained checkpoint per {landscape_function}_{landscape_dim}d pair.
+#   Generate them with:
+#     python src/main.py --config-path configs/experiments --config-name matrix_train --multirun
+
+hydra:
+  mode: MULTIRUN
+  run:
+    dir: src/outputs/eval_multi_matrix/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: src/outputs/eval_multi_matrix/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${env.landscape_function}_${env.landscape_dim}d/seed_${seed}
+  sweeper:
+    params:
+      env.landscape_function: sphere,rastrigin,dynamic_sphere
+      env.landscape_dim: 2,10
+      seed: 11,22,33,44,55
+
+model:
+  name: ppo
+  hidden_sizes: [64, 64]
+  activation: relu
+  dropout: 0.25
+  learning_rate: 0.0003
+  centralized_critic: true
+  share_params: true
+
+env:
+  name: swarm
+  landscape_dim: 2
+  num_agents: 12
+  batch_size: 1
+  delta: 1.0
+  landscape_function: sphere
+
+eval:
+  num_eval_episodes: 10
+  max_steps: 100
+  save_metrics: true
+  compare_random: true
+  collect_diversity: true
+  collect_info_spread: true
+  save_metric_curves: true
+
+topologies:
+  - name: global
+    type: global
+    k: null
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: ring
+    type: ring
+    k: 1
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: von_neumann
+    type: von_neumann
+    k: null
+    recompute_interval: null
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    include_self: true
+
+  - name: knearest
+    type: knearest
+    k: 2
+    recompute_interval: 5
+    rows: null
+    cols: null
+    grid_shape:
+      rows: null
+      cols: null
+      rule: infer_if_missing
+    symmetric: true
+    include_self: true
+
+matrix:
+  topology_count: 4
+  landscape_types:
+    - sphere
+    - rastrigin
+    - dynamic_sphere
+  dimensions:
+    low_d: 2
+    high_d: 10
+  seeds: [11, 22, 33, 44, 55]
+  total_hydra_jobs: 30
+  total_topology_conditions: 120
+
+visualization:
+  visualize_swarm: false
+  visualize_landscape: false
+  save_gif: false
+  save_dir: src/outputs/eval_multi_matrix/vis/
+  fps: 10
+  dpi: 150
+
+model_path: src/outputs/best_model.pt
+model_path_template: src/outputs/matrix_train/{landscape_function}_{landscape_dim}d/best_model.pt
+output_dir: src/outputs/eval_multi_matrix
+seed: 11

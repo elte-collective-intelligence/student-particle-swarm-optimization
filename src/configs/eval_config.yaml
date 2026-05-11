@@ -43,6 +43,8 @@ visualization:
 
 # Model checkpoint to evaluate
 model_path: src/outputs/best_model.pt
+# Optional: resolve a checkpoint dynamically per run, e.g.
+# model_path_template: src/outputs/trained/{landscape_function}_{landscape_dim}d/best_model.pt
 
 # Output directory for evaluation results
 output_dir: src/outputs/eval

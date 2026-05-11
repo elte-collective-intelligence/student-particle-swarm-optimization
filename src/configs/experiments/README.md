@@ -91,6 +91,38 @@ Full topology-enabled evaluation preset:
 python src/eval.py --config-path configs/experiments --config-name topology_full_eval
 ```
 
+## Experimental Matrix
+
+### Multi-Topology Matrix (`../eval_multi_topology_matrix.yaml`)
+Assignment-scale comparison preset:
+- 4 topologies compared inside each run: `global`, `ring`, `von_neumann`, `knearest`
+- 3 landscape types: `sphere` (unimodal), `rastrigin` (multimodal), `dynamic_sphere` (dynamic)
+- 5 seeds: `11, 22, 33, 44, 55`
+- 2 dimensionality settings: `2D` (low-D) and `10D` (high-D)
+- Total coverage: `30` Hydra jobs, `120` topology conditions
+
+```bash
+python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --multirun
+```
+
+Outputs are grouped under:
+- `src/outputs/eval_multi_matrix/multirun/<date>/<time>/<landscape>_<dim>d/seed_<seed>/`
+
+### Matrix Train (`matrix_train.yaml`)
+Training preset for the full evaluation matrix:
+- 3 landscape types: `sphere`, `rastrigin`, `dynamic_sphere`
+- 2 dimensionality settings: `2D`, `10D`
+- 12 agents to match the topology evaluation matrix
+- Produces 6 compatible checkpoints under `src/outputs/matrix_train/`
+
+```bash
+python src/main.py --config-path configs/experiments --config-name matrix_train --multirun
+```
+
+This should be run before the full `eval_multi_topology_matrix` sweep so each
+evaluation job can resolve a compatible checkpoint via
+`src/outputs/matrix_train/{landscape_function}_{landscape_dim}d/best_model.pt`.
+
 ## Creating Custom Experiments
 
 Copy any experiment file and modify the parameters as needed. Key parameters:

@@ -762,6 +762,53 @@ class TestTopologyIntegration:
         assert obs["neighborhood_best_pos"].shape == (2, 4, 2)
         assert obs["neighborhood_best_scores"].shape == (2, 4)
 
+    def test_topology_enabled_observations_keep_expected_keys_and_shapes(
+        self, topology_env
+    ):
+        obs = topology_env.reset()
+
+        if "next" in obs:
+            obs = obs["next"]
+
+        expected_shapes = {
+            "scores": (2, 4),
+            "positions": (2, 4, 2),
+            "velocities": (2, 4, 2),
+            "avg_pos": (2, 4, 2),
+            "avg_vel": (2, 4, 2),
+            "personal_best_pos": (2, 4, 2),
+            "personal_best_scores": (2, 4),
+            "neighborhood_best_pos": (2, 4, 2),
+            "neighborhood_best_scores": (2, 4),
+        }
+
+        for key, shape in expected_shapes.items():
+            assert key in obs
+            assert obs[key].shape == shape
+
+        assert ("agents", "reward") in obs
+        assert obs[("agents", "reward")].shape == (2, 4)
+
+        action = TensorDict(
+            {
+                "inertia": torch.zeros(2, 4, 2, device=topology_env.device),
+                "cognitive": torch.zeros(2, 4, 2, device=topology_env.device),
+                "social": torch.zeros(2, 4, 2, device=topology_env.device),
+            },
+            batch_size=(2,),
+        )
+
+        step_obs = topology_env.step(action)
+        if "next" in step_obs:
+            step_obs = step_obs["next"]
+
+        for key, shape in expected_shapes.items():
+            assert key in step_obs
+            assert step_obs[key].shape == shape
+
+        assert ("agents", "reward") in step_obs
+        assert step_obs[("agents", "reward")].shape == (2, 4)
+
     def test_dynamic_topology_updates_on_step(self, topology_env):
         topology_env.reset()
 
@@ -791,6 +838,97 @@ class TestTopologyIntegration:
 
         assert updated is True
         assert not torch.equal(topology_env.topology.get_adjacency(), initial_adjacency)
+
+    def test_dynamic_topology_respects_recompute_interval(self, topology_env):
+        topology_env.topology_config = {
+            "type": "knearest",
+            "k": 1,
+            "recompute_interval": 3,
+        }
+        topology_env.reset()
+
+        positions_a = torch.tensor(
+            [[[0.0, 0.0], [1.0, 0.0], [10.0, 0.0], [11.0, 0.0]]],
+            device=topology_env.device,
+        ).repeat(topology_env.batch_size[0], 1, 1)
+        positions_b = torch.tensor(
+            [[[0.0, 0.0], [10.0, 0.0], [1.0, 0.0], [11.0, 0.0]]],
+            device=topology_env.device,
+        ).repeat(topology_env.batch_size[0], 1, 1)
+
+        topology_env.positions = positions_a
+        topology_env.velocities = torch.zeros_like(topology_env.positions)
+        topology_env.personal_best_pos = topology_env.positions.clone()
+        topology_env.personal_best_scores = topology_env.landscape(
+            topology_env.personal_best_pos
+        )
+        topology_env.scores = topology_env.landscape(topology_env.positions)
+        topology_env.initialize_topology(topology_env.positions)
+
+        initial_adjacency = topology_env.topology.get_adjacency().clone()
+
+        topology_env.positions = positions_b
+        topology_env.step_count = 1
+        assert topology_env.update_topology() is False
+        assert torch.equal(topology_env.topology.get_adjacency(), initial_adjacency)
+
+        topology_env.step_count = 2
+        assert topology_env.update_topology() is False
+        assert torch.equal(topology_env.topology.get_adjacency(), initial_adjacency)
+
+        topology_env.step_count = 3
+        assert topology_env.update_topology() is True
+        assert not torch.equal(topology_env.topology.get_adjacency(), initial_adjacency)
+
+    def test_reward_propagates_through_neighborhood_best(self, topology_env):
+        topology_env.topology_config = {"type": "ring", "k": 1}
+        topology_env.reset()
+
+        positions = torch.ones(
+            topology_env.batch_size[0],
+            topology_env.num_agents,
+            topology_env.landscape.dim,
+            device=topology_env.device,
+        )
+        topology_env.positions = positions
+        topology_env.velocities = torch.zeros_like(topology_env.positions)
+        topology_env.scores = topology_env.landscape(topology_env.positions)
+        topology_env.personal_best_pos = topology_env.positions.clone()
+        topology_env.personal_best_scores = topology_env.scores.clone()
+        topology_env.initialize_topology(topology_env.positions)
+        topology_env.compute_neighborhood_best()
+        topology_env.avg_pos, topology_env.avg_vel = get_neighborhood_avg(
+            topology_env.positions, topology_env.velocities, topology_env.delta
+        )
+
+        action = TensorDict(
+            {
+                "inertia": torch.zeros(2, 4, 2, device=topology_env.device),
+                "cognitive": torch.zeros(2, 4, 2, device=topology_env.device),
+                "social": torch.zeros(2, 4, 2, device=topology_env.device),
+            },
+            batch_size=(2,),
+        )
+        topology_env.velocities[:, 1] = -torch.ones(
+            topology_env.batch_size[0],
+            topology_env.landscape.dim,
+            device=topology_env.device,
+        )
+        action["inertia"][:, 1] = 1.0
+
+        obs = topology_env.step(action)
+        if "next" in obs:
+            obs = obs["next"]
+
+        reward = obs[("agents", "reward")]
+
+        assert torch.all(reward[:, 1] > 0)
+        assert torch.all(reward[:, 0] > 0)
+        assert torch.all(reward[:, 2] > 0)
+        assert torch.all(reward[:, 3] == 0)
+        assert torch.all(reward[:, 1] > reward[:, 0])
+        assert torch.all(reward[:, 1] > reward[:, 2])
+        assert torch.all(reward <= 1.0)
 
 
 class TestUtilsAndWrappers:

@@ -41,6 +41,8 @@ class PSOEnv(EnvBase):
         self.neighborhood_best_scores = None
         self.avg_pos = None
         self.avg_vel = None
+        self.max_velocity_abs = 10.0
+        self.max_position_abs = 100.0
 
         self.observation_spec = Composite(
             {
@@ -203,6 +205,20 @@ class PSOEnv(EnvBase):
         reward = 0.5 * personal_reward + 0.5 * neighborhood_reward
         return torch.nan_to_num(reward)
 
+    def _bounded_actions(
+        self, action: TensorDict
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        inertia = torch.nan_to_num(
+            action["inertia"], nan=0.7, posinf=1.2, neginf=0.0
+        ).clamp(0.0, 1.2)
+        cognitive = torch.nan_to_num(
+            action["cognitive"], nan=1.5, posinf=2.5, neginf=0.0
+        ).clamp(0.0, 2.5)
+        social = torch.nan_to_num(
+            action["social"], nan=1.5, posinf=2.5, neginf=0.0
+        ).clamp(0.0, 2.5)
+        return inertia, cognitive, social
+
     def _reset(self, params=None) -> TensorDict:
         # Reset landscape function
         self.landscape.reset()
@@ -264,14 +280,27 @@ class PSOEnv(EnvBase):
             if self.neighborhood_best_scores is not None
             else self.personal_best_scores
         )
+        inertia, cognitive, social = self._bounded_actions(action)
 
         self.velocities = (
-            action["inertia"] * self.velocities
-            + action["cognitive"] * (self.personal_best_pos - self.positions)
-            + action["social"] * self.get_social_signal()
+            inertia * self.velocities
+            + cognitive * (self.personal_best_pos - self.positions)
+            + social * self.get_social_signal()
         )
+        self.velocities = torch.nan_to_num(
+            self.velocities,
+            nan=0.0,
+            posinf=self.max_velocity_abs,
+            neginf=-self.max_velocity_abs,
+        ).clamp(-self.max_velocity_abs, self.max_velocity_abs)
 
         self.positions = self.positions + self.velocities
+        self.positions = torch.nan_to_num(
+            self.positions,
+            nan=0.0,
+            posinf=self.max_position_abs,
+            neginf=-self.max_position_abs,
+        ).clamp(-self.max_position_abs, self.max_position_abs)
         self.step_count += 1
         self.update_topology()
 

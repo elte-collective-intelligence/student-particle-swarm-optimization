@@ -27,7 +27,12 @@ from omegaconf import DictConfig, OmegaConf
 from torchrl.envs import RewardSum, TransformedEnv
 
 from envs import PSOEnv
-from eval_helpers import create_policy, get_landscape_function
+from eval_helpers import (
+    create_policy,
+    get_landscape_function,
+    load_policy_checkpoint,
+    resolve_model_path,
+)
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -89,14 +94,12 @@ def _load_policy(
         device=device,
     )
 
-    if os.path.exists(model_path):
-        checkpoint = torch.load(model_path, map_location=device)
-        policy.load_state_dict(checkpoint["policy_state_dict"])
-    else:
-        raise FileNotFoundError(
-            f"Model checkpoint not found: {model_path}. "
-            "Train first or override model_path in config."
-        )
+    load_policy_checkpoint(
+        policy=policy,
+        model_path=model_path,
+        device=device,
+        expected_input_dim=2 * int(cfg.env.landscape_dim),
+    )
 
     policy.eval()
     return policy
@@ -235,7 +238,7 @@ def main(cfg: DictConfig) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     original_cwd = get_original_cwd()
-    model_path = os.path.join(original_cwd, cfg.model_path)
+    model_path = resolve_model_path(cfg, original_cwd)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_root = os.path.join(original_cwd, cfg.output_dir, timestamp)
