@@ -12,22 +12,22 @@ Local topologies should preserve diversity and help on multimodal or dynamic lan
 
 The results support the hypothesis in the dynamic and low-dimensional multimodal cases, but not uniformly across all dimensions.
 
-| Landscape | 2D result | 10D result | Interpretation |
-|---|---|---|---|
-| `sphere` | all topologies solve it | `knearest` slightly best | topology has little practical effect on this easy unimodal task |
-| `rastrigin` | `von_neumann` best, `ring` second | `global` best | local topology helps avoid local minima in 2D, but high-dimensional search favors faster information sharing |
-| `dynamic_sphere` | `ring` best | `ring` best | local communication improves adaptation when the optimum moves |
+| Landscape        | 2D result                         | 10D result               | Interpretation                                                                                               |
+| ---------------- | --------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `sphere`         | all topologies solve it           | `knearest` slightly best | topology has little practical effect on this easy unimodal task                                              |
+| `rastrigin`      | `von_neumann` best, `ring` second | `global` best            | local topology helps avoid local minima in 2D, but high-dimensional search favors faster information sharing |
+| `dynamic_sphere` | `ring` best                       | `ring` best              | local communication improves adaptation when the optimum moves                                               |
 
 Aggregated trained-policy final-score means:
 
-| Condition | Best topology | Mean final score |
-|---|---|---:|
-| `sphere 2D` | effectively tied | ~0 |
-| `sphere 10D` | `knearest` | `-0.1356` |
-| `rastrigin 2D` | `von_neumann` | `-0.3059` |
-| `rastrigin 10D` | `global` | `-14.9262` |
-| `dynamic_sphere 2D` | `ring` | `-2.6138` |
-| `dynamic_sphere 10D` | `ring` | `-1.7095` |
+| Condition            | Best topology    | Mean final score |
+| -------------------- | ---------------- | ---------------: |
+| `sphere 2D`          | effectively tied |               ~0 |
+| `sphere 10D`         | `knearest`       |        `-0.1356` |
+| `rastrigin 2D`       | `von_neumann`    |        `-0.3059` |
+| `rastrigin 10D`      | `global`         |       `-14.9262` |
+| `dynamic_sphere 2D`  | `ring`           |        `-2.6138` |
+| `dynamic_sphere 10D` | `ring`           |        `-1.7095` |
 
 Because the objective functions are negated, higher scores are better.
 
@@ -78,4 +78,3 @@ The main scientific takeaway is that there is no universally best topology. The 
 ## Concise Report Conclusion
 
 Communication topology substantially changes PSO behavior by controlling how quickly information spreads through the swarm. Global topology favors rapid exploitation and performs well when fast convergence is beneficial, while local topologies preserve diversity and improve robustness on multimodal low-dimensional and dynamic landscapes. The strongest evidence is that `ring` consistently outperforms `global` on `dynamic_sphere`, and `von_neumann`/`ring` outperform `global` on `rastrigin 2D`. However, the hypothesis is only partially supported because `global` is best on `rastrigin 10D`, showing that diversity preservation can become costly in higher-dimensional search. Overall, topology should be treated as an exploration-exploitation mechanism rather than a universally optimal design choice.
-

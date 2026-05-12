@@ -10,21 +10,21 @@ The tested topologies were `global`, `ring`, `von_neumann`, and `knearest`. They
 
 The original PSO experiment was extended to compare multiple communication topologies under a common learned-control setup. The implementation evaluates how each topology changes the neighborhood best information available to particles. This makes topology an explicit information-flow parameter rather than a fixed implementation detail.
 
-The experiment pipeline produced trained-policy outputs, aggregated metric tables, and presentation-ready visualizations. The main analysis used final score, best score, convergence AUC, plateau fraction, pairwise particle distance, position spread, velocity alignment, and information-spread measures. Results were summarized in `presentation/topology_experiment/analysis/trained_topology_summary.csv` and supporting figures were generated under `presentation/topology_experiment/presentation_assets/key_figures`.
+The experiment pipeline produced trained-policy outputs, aggregated metric tables, and presentation-ready visualizations. The main analysis used final score, best score, convergence AUC, plateau fraction, pairwise particle distance, position spread, velocity alignment, and information-spread measures. Results were summarized in `images/semester_contribution/analysis/trained_topology_summary.csv` and supporting figures were generated under `images/semester_contribution/key_figures`.
 
 ## Key Results
 
 The results partially support the hypothesis. On the easy `sphere` landscape, topology had little practical effect: all topologies solved the 2D case, and differences in 10D were small. On `rastrigin 2D`, local communication helped: `von_neumann` achieved the best mean final score, followed by `ring`, and both beat `global` in all five seeds. This supports the idea that slower information propagation can prevent premature convergence in low-dimensional multimodal search.
 
-![Rastrigin 2D convergence curves](presentation/topology_experiment/presentation_assets/key_figures/rastrigin_2d_seed11_convergence_curves.png)
+![Rastrigin 2D convergence curves](images/semester_contribution/key_figures/rastrigin_2d_seed11_convergence_curves.png)
 
 The strongest result appeared on `dynamic_sphere`. `ring` was best in both 2D and 10D, and it beat `global` in all five seeds for both dimensions. This suggests that local communication improves robustness when the optimum moves, because the swarm avoids collapsing too quickly around stale information.
 
-![Dynamic sphere 2D convergence curves](presentation/topology_experiment/presentation_assets/key_figures/dynamic_sphere_2d_seed11_convergence_curves.png)
+![Dynamic sphere 2D convergence curves](images/semester_contribution/key_figures/dynamic_sphere_2d_seed11_convergence_curves.png)
 
 However, the hypothesis did not hold uniformly. On `rastrigin 10D`, `global` performed best, with a mean final score of `-14.9262`, while local topologies were worse despite preserving more diversity. In higher-dimensional multimodal search, fast information sharing appears more valuable than maintaining broad spatial diversity.
 
-![Dynamic sphere swarm behaviour](presentation/topology_experiment/presentation_assets/key_figures/side_by_side_dynamic_sphere.gif)
+![Dynamic sphere swarm behaviour](images/semester_contribution/key_figures/side_by_side_dynamic_sphere.gif)
 
 ## Conclusions & Limitations
 
