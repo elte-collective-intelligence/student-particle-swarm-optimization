@@ -90,8 +90,8 @@ class DimAgnosticCritic(nn.Module):
 
     def forward(self, avg_pos: torch.Tensor, avg_vel: torch.Tensor) -> torch.Tensor:
         x = torch.stack([avg_pos, avg_vel], dim=-1)  # [..., D, 2]
-        h = self.encoder(x).mean(dim=-2)              # [..., H]  (mean over D)
-        return self.value_head(h)                      # [..., 1]
+        h = self.encoder(x).mean(dim=-2)  # [..., H]  (mean over D)
+        return self.value_head(h)  # [..., 1]
 
 
 def build_curriculum_policy(net: "DimAgnosticNet", env, device):
@@ -110,12 +110,12 @@ def build_curriculum_policy(net: "DimAgnosticNet", env, device):
             net,
             in_keys=["avg_pos", "avg_vel"],
             out_keys=[
-                ("params", "inertia",   "loc"),
-                ("params", "inertia",   "scale"),
+                ("params", "inertia", "loc"),
+                ("params", "inertia", "scale"),
                 ("params", "cognitive", "loc"),
                 ("params", "cognitive", "scale"),
-                ("params", "social",    "loc"),
-                ("params", "social",    "scale"),
+                ("params", "social", "loc"),
+                ("params", "social", "scale"),
             ],
         ),
         in_keys=["params"],
@@ -124,9 +124,9 @@ def build_curriculum_policy(net: "DimAgnosticNet", env, device):
         distribution_class=CompositeDistribution,
         distribution_kwargs={
             "distribution_map": {
-                "inertia":   d.Normal,
+                "inertia": d.Normal,
                 "cognitive": d.Normal,
-                "social":    d.Normal,
+                "social": d.Normal,
             }
         },
         return_log_prob=True,

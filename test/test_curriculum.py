@@ -106,7 +106,11 @@ class TestCurriculumManager:
 
     def test_preset_curricula_have_stages(self):
         """All three presets should have >= 3 stages."""
-        for preset in [CurriculumManager.dimension, CurriculumManager.function, CurriculumManager.dynamics]:
+        for preset in [
+            CurriculumManager.dimension,
+            CurriculumManager.function,
+            CurriculumManager.dynamics,
+        ]:
             mgr = preset()
             assert len(mgr.stages) >= 3, f"{preset.__name__} has < 3 stages"
 

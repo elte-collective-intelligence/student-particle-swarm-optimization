@@ -3,20 +3,20 @@ import torch
 
 def sphere(x: torch.Tensor) -> torch.Tensor:
     """Sphere: f(x) = sum(x²). Optimum 0 at origin."""
-    return -torch.sum(x ** 2, dim=-1)
+    return -torch.sum(x**2, dim=-1)
 
 
 def rosenbrock(x: torch.Tensor) -> torch.Tensor:
     """Rosenbrock (banana): optimum 0 at (1,...,1)."""
-    xi  = x[..., :-1]
+    xi = x[..., :-1]
     xi1 = x[..., 1:]
-    return -(100 * (xi1 - xi ** 2) ** 2 + (1 - xi) ** 2).sum(dim=-1)
+    return -(100 * (xi1 - xi**2) ** 2 + (1 - xi) ** 2).sum(dim=-1)
 
 
 def rastrigin(x: torch.Tensor) -> torch.Tensor:
     """Rastrigin: highly multimodal."""
     A = 10
-    return -(A * x.shape[-1] + torch.sum(x ** 2 - A * torch.cos(2 * 3.14159 * x), dim=-1))
+    return -(A * x.shape[-1] + torch.sum(x**2 - A * torch.cos(2 * 3.14159 * x), dim=-1))
 
 
 def eggholder(x: torch.Tensor) -> torch.Tensor:
@@ -31,8 +31,8 @@ def eggholder(x: torch.Tensor) -> torch.Tensor:
 
 
 STATIC_FUNCTIONS = {
-    "sphere":     sphere,
+    "sphere": sphere,
     "rosenbrock": rosenbrock,
-    "rastrigin":  rastrigin,
-    "eggholder":  eggholder,
+    "rastrigin": rastrigin,
+    "eggholder": eggholder,
 }

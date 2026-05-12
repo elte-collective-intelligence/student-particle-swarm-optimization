@@ -87,19 +87,33 @@ def run_episode(env, policy, max_steps: int, visualizer: SwarmVisualizer):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate GIFs from curriculum-trained models")
-    parser.add_argument("--model-path", required=True, help="Path to seed_N/model.pt checkpoint")
-    parser.add_argument("--config-name", required=True,
-                        help="Curriculum config name (function, dynamics, dimension, combined). "
-                             "Reads hidden_size, num_agents, delta from the corresponding YAML.")
-    parser.add_argument("--landscape", required=True,
-                        help="Landscape to evaluate on: sphere, rastrigin, eggholder, rosenbrock, "
-                             "dynamic_sphere, dynamic_rastrigin")
-    parser.add_argument("--dim", type=int, default=2, help="Search space dimensionality")
+    parser = argparse.ArgumentParser(
+        description="Generate GIFs from curriculum-trained models"
+    )
+    parser.add_argument(
+        "--model-path", required=True, help="Path to seed_N/model.pt checkpoint"
+    )
+    parser.add_argument(
+        "--config-name",
+        required=True,
+        help="Curriculum config name (function, dynamics, dimension, combined). "
+        "Reads hidden_size, num_agents, delta from the corresponding YAML.",
+    )
+    parser.add_argument(
+        "--landscape",
+        required=True,
+        help="Landscape to evaluate on: sphere, rastrigin, eggholder, rosenbrock, "
+        "dynamic_sphere, dynamic_rastrigin",
+    )
+    parser.add_argument(
+        "--dim", type=int, default=2, help="Search space dimensionality"
+    )
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--max-steps", type=int, default=100, help="Steps per episode")
     parser.add_argument("--output-dir", default="images/semester_contribution")
-    parser.add_argument("--gif-name", default=None, help="Base filename for output GIFs (no extension)")
+    parser.add_argument(
+        "--gif-name", default=None, help="Base filename for output GIFs (no extension)"
+    )
     parser.add_argument("--fps", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -114,23 +128,29 @@ def main():
     checkpoint = torch.load(args.model_path, map_location=device, weights_only=False)
 
     if "model_cfg" in checkpoint:
-        model_cfg   = checkpoint["model_cfg"]
+        model_cfg = checkpoint["model_cfg"]
         hidden_size = model_cfg["hidden_size"]
-        num_agents  = model_cfg["num_agents"]
-        delta       = model_cfg["delta"]
-        cfg_source  = "checkpoint"
+        num_agents = model_cfg["num_agents"]
+        delta = model_cfg["delta"]
+        cfg_source = "checkpoint"
     else:
-        yaml_cfg    = load_curriculum_cfg(args.config_name)
+        yaml_cfg = load_curriculum_cfg(args.config_name)
         hidden_size = yaml_cfg.model.hidden_size
-        num_agents  = yaml_cfg.env.num_agents
-        delta       = yaml_cfg.env.delta
-        cfg_source  = f"{args.config_name}.yaml (fallback — checkpoint predates model_cfg)"
+        num_agents = yaml_cfg.env.num_agents
+        delta = yaml_cfg.env.delta
+        cfg_source = (
+            f"{args.config_name}.yaml (fallback — checkpoint predates model_cfg)"
+        )
 
-    gif_name = args.gif_name or f"curriculum_{args.config_name}_{args.landscape}_{args.dim}d"
+    gif_name = (
+        args.gif_name or f"curriculum_{args.config_name}_{args.landscape}_{args.dim}d"
+    )
 
     print(f"Device:      {device}")
     print(f"Config src:  {cfg_source}")
-    print(f"             hidden_size={hidden_size}, num_agents={num_agents}, delta={delta}")
+    print(
+        f"             hidden_size={hidden_size}, num_agents={num_agents}, delta={delta}"
+    )
     print(f"Model:       {args.model_path}")
     print(f"Landscape:   {args.landscape} {args.dim}D")
     print(f"Output:      {args.output_dir}/{gif_name}_*.gif")
@@ -167,7 +187,9 @@ def main():
         "fps": args.fps,
         "dpi": 150,
     }
-    visualizer = SwarmVisualizer(vis_config=vis_config, landscape_fn=landscape_fn, dim=args.dim)
+    visualizer = SwarmVisualizer(
+        vis_config=vis_config, landscape_fn=landscape_fn, dim=args.dim
+    )
     visualizer.reset(episode=0)
 
     # --- Run episode ---
@@ -185,7 +207,9 @@ def main():
         if gif_3d:
             print(f"Saved 3D GIF: {gif_3d}")
 
-    visualizer.create_convergence_plot(best_curve, mean_curve, filename=f"{gif_name}_convergence")
+    visualizer.create_convergence_plot(
+        best_curve, mean_curve, filename=f"{gif_name}_convergence"
+    )
     print("Done.")
 
 

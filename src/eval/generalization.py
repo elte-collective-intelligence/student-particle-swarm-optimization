@@ -62,8 +62,15 @@ class GeneralizationEvaluator:
             dict with keys: dim, landscape, mean_reward, std_reward, best_reward
         """
         landscape_kwargs = landscape_kwargs or {}
-        env = make_env(dim, landscape_name, self.num_agents, self.batch_size,
-                       self.delta, self.device, landscape_kwargs)
+        env = make_env(
+            dim,
+            landscape_name,
+            self.num_agents,
+            self.batch_size,
+            self.delta,
+            self.device,
+            landscape_kwargs,
+        )
         policy = build_curriculum_policy(self.net, env, self.device)
 
         rewards = []
@@ -106,7 +113,9 @@ class GeneralizationEvaluator:
                 try:
                     result = self.evaluate(dim, fn, seed=seed)
                     matrix[i, j] = result["mean_reward"]
-                    print(f"  [{dim}D, {fn}]: {result['mean_reward']:.3f} ± {result['std_reward']:.3f}")
+                    print(
+                        f"  [{dim}D, {fn}]: {result['mean_reward']:.3f} ± {result['std_reward']:.3f}"
+                    )
                 except ValueError as e:
                     # Expected for invalid combos (e.g. odd-dim eggholder).
                     print(f"  [{dim}D, {fn}]: skipped — {e}")

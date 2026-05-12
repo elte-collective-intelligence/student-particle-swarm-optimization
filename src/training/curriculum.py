@@ -11,7 +11,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from envs.env import PSOEnv
 from torchrl.envs import TransformedEnv, RewardSum
 
-
 # ---------------------------------------------------------------------------
 # Stage definition
 # ---------------------------------------------------------------------------
@@ -23,9 +22,9 @@ class Stage:
     dim: int
     landscape_name: str
     max_iters: int
-    threshold: float           # rolling-mean reward to advance early; -inf disables
+    threshold: float  # rolling-mean reward to advance early; -inf disables
     landscape_kwargs: dict = field(default_factory=dict)
-    min_iters: int = 0         # must train at least this many iters before threshold check
+    min_iters: int = 0  # must train at least this many iters before threshold check
 
 
 # ---------------------------------------------------------------------------
@@ -64,10 +63,23 @@ class CurriculumManager:
         """
         return cls(
             [
-                Stage("sphere_2d",  2,  "sphere", max_iters=50,  threshold=0.60, min_iters=20),
-                Stage("sphere_5d",  5,  "sphere", max_iters=80,  threshold=float("-inf"), min_iters=30),
-                Stage("sphere_10d", 10, "sphere", max_iters=100, threshold=float("-inf")),
-                Stage("sphere_30d", 30, "sphere", max_iters=120, threshold=float("-inf")),
+                Stage(
+                    "sphere_2d", 2, "sphere", max_iters=50, threshold=0.60, min_iters=20
+                ),
+                Stage(
+                    "sphere_5d",
+                    5,
+                    "sphere",
+                    max_iters=80,
+                    threshold=float("-inf"),
+                    min_iters=30,
+                ),
+                Stage(
+                    "sphere_10d", 10, "sphere", max_iters=100, threshold=float("-inf")
+                ),
+                Stage(
+                    "sphere_30d", 30, "sphere", max_iters=120, threshold=float("-inf")
+                ),
             ],
             window=window,
         )
@@ -77,10 +89,32 @@ class CurriculumManager:
         """Increase function complexity in 2D: Sphere → Rosenbrock → Rastrigin → Eggholder."""
         return cls(
             [
-                Stage("sphere_2d",     2, "sphere",     max_iters=40,  threshold=1.0,          min_iters=20),
-                Stage("rosenbrock_2d", 2, "rosenbrock", max_iters=60,  threshold=float("-inf"), min_iters=25),
-                Stage("rastrigin_2d",  2, "rastrigin",  max_iters=80,  threshold=float("-inf"), min_iters=30),
-                Stage("eggholder_2d",  2, "eggholder",  max_iters=100, threshold=float("-inf")),
+                Stage(
+                    "sphere_2d", 2, "sphere", max_iters=40, threshold=1.0, min_iters=20
+                ),
+                Stage(
+                    "rosenbrock_2d",
+                    2,
+                    "rosenbrock",
+                    max_iters=60,
+                    threshold=float("-inf"),
+                    min_iters=25,
+                ),
+                Stage(
+                    "rastrigin_2d",
+                    2,
+                    "rastrigin",
+                    max_iters=80,
+                    threshold=float("-inf"),
+                    min_iters=30,
+                ),
+                Stage(
+                    "eggholder_2d",
+                    2,
+                    "eggholder",
+                    max_iters=100,
+                    threshold=float("-inf"),
+                ),
             ],
             window=window,
         )
@@ -90,9 +124,26 @@ class CurriculumManager:
         """Increase landscape non-stationarity: static → slow → fast dynamics."""
         return cls(
             [
-                Stage("static_2d",   2, "sphere",         max_iters=40, threshold=1.0,           min_iters=20),
-                Stage("slow_dyn_2d", 2, "dynamic_sphere", max_iters=60, threshold=0.5,           min_iters=25, landscape_kwargs={"shift_speed": 0.05}),
-                Stage("fast_dyn_2d", 2, "dynamic_sphere", max_iters=80, threshold=float("-inf"), landscape_kwargs={"shift_speed": 0.3}),
+                Stage(
+                    "static_2d", 2, "sphere", max_iters=40, threshold=1.0, min_iters=20
+                ),
+                Stage(
+                    "slow_dyn_2d",
+                    2,
+                    "dynamic_sphere",
+                    max_iters=60,
+                    threshold=0.5,
+                    min_iters=25,
+                    landscape_kwargs={"shift_speed": 0.05},
+                ),
+                Stage(
+                    "fast_dyn_2d",
+                    2,
+                    "dynamic_sphere",
+                    max_iters=80,
+                    threshold=float("-inf"),
+                    landscape_kwargs={"shift_speed": 0.3},
+                ),
             ],
             window=window,
         )
@@ -102,10 +153,32 @@ class CurriculumManager:
         """Function complexity then dimension scaling: sphere 2D → rastrigin 2D → rastrigin 5D → rastrigin 10D."""
         return cls(
             [
-                Stage("sphere_2d",     2,  "sphere",    max_iters=40,  threshold=1.0,          min_iters=20),
-                Stage("rastrigin_2d",  2,  "rastrigin", max_iters=60,  threshold=float("-inf"), min_iters=25),
-                Stage("rastrigin_5d",  5,  "rastrigin", max_iters=80,  threshold=float("-inf"), min_iters=30),
-                Stage("rastrigin_10d", 10, "rastrigin", max_iters=100, threshold=float("-inf")),
+                Stage(
+                    "sphere_2d", 2, "sphere", max_iters=40, threshold=1.0, min_iters=20
+                ),
+                Stage(
+                    "rastrigin_2d",
+                    2,
+                    "rastrigin",
+                    max_iters=60,
+                    threshold=float("-inf"),
+                    min_iters=25,
+                ),
+                Stage(
+                    "rastrigin_5d",
+                    5,
+                    "rastrigin",
+                    max_iters=80,
+                    threshold=float("-inf"),
+                    min_iters=30,
+                ),
+                Stage(
+                    "rastrigin_10d",
+                    10,
+                    "rastrigin",
+                    max_iters=100,
+                    threshold=float("-inf"),
+                ),
             ],
             window=window,
         )
@@ -121,7 +194,9 @@ class CurriculumManager:
         }
         ctype = cfg.curriculum.type
         if ctype not in presets:
-            raise ValueError(f"Unknown curriculum type: '{ctype}'. Choose from: {list(presets)}")
+            raise ValueError(
+                f"Unknown curriculum type: '{ctype}'. Choose from: {list(presets)}"
+            )
         return presets[ctype](window=cfg.curriculum.window)
 
     # ------------------------------------------------------------------
@@ -163,7 +238,11 @@ class CurriculumManager:
             return True
         # threshold == -inf is used as a sentinel to disable reward-based early advance
         past_min = self._iters >= self.current.min_iters
-        if past_min and self.current.threshold != float("-inf") and len(self._history) >= self.window:
+        if (
+            past_min
+            and self.current.threshold != float("-inf")
+            and len(self._history) >= self.window
+        ):
             if np.mean(self._history[-self.window :]) >= self.current.threshold:
                 return True
         return False
@@ -210,7 +289,9 @@ def make_env(
         landscape = DynamicRastrigin(dim=dim, **landscape_kwargs)
     else:
         available = list(static.keys()) + ["dynamic_sphere", "dynamic_rastrigin"]
-        raise ValueError(f"Unknown landscape '{landscape_name}'. Available: {available}")
+        raise ValueError(
+            f"Unknown landscape '{landscape_name}'. Available: {available}"
+        )
 
     env = PSOEnv(
         landscape=landscape,

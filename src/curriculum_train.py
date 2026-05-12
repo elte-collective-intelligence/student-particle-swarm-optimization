@@ -23,7 +23,6 @@ from models import DimAgnosticNet, DimAgnosticCritic, build_curriculum_policy
 from training.curriculum import CurriculumManager, Stage, make_env
 from eval.generalization import GeneralizationEvaluator
 
-
 # ---------------------------------------------------------------------------
 # Eval grid per curriculum type
 # Dims/functions marked with * are held-out (never seen during training).
@@ -39,7 +38,13 @@ EVAL_GRIDS = {
     # held-out: dynamic_sphere*
     "function": {
         "dims": [2],
-        "functions": ["sphere", "rosenbrock", "rastrigin", "eggholder", "dynamic_sphere"],
+        "functions": [
+            "sphere",
+            "rosenbrock",
+            "rastrigin",
+            "eggholder",
+            "dynamic_sphere",
+        ],
     },
     # Trained on static/slow/fast sphere → held-out: default shift_speed (dynamic_sphere*)
     "dynamics": {
@@ -120,12 +125,16 @@ def ppo_loss(subdata, policy, critic, cfg) -> torch.Tensor:
     # ProbabilisticActor stores its inner TensorDictModule in module[0]
     subdata = policy.module[0](subdata)
 
-    inertia_dist = d.Normal(subdata[("params", "inertia", "loc")],
-                            subdata[("params", "inertia", "scale")])
-    cog_dist = d.Normal(subdata[("params", "cognitive", "loc")],
-                        subdata[("params", "cognitive", "scale")])
-    soc_dist = d.Normal(subdata[("params", "social", "loc")],
-                        subdata[("params", "social", "scale")])
+    inertia_dist = d.Normal(
+        subdata[("params", "inertia", "loc")], subdata[("params", "inertia", "scale")]
+    )
+    cog_dist = d.Normal(
+        subdata[("params", "cognitive", "loc")],
+        subdata[("params", "cognitive", "scale")],
+    )
+    soc_dist = d.Normal(
+        subdata[("params", "social", "loc")], subdata[("params", "social", "scale")]
+    )
 
     new_log_prob = (
         inertia_dist.log_prob(subdata["inertia"]).sum(-1)
@@ -171,9 +180,13 @@ def train_stage(stage: Stage, net, critic_net, optim, cfg, device, early_stop_fn
         List of per-iteration episode rewards.
     """
     env = make_env(
-        stage.dim, stage.landscape_name,
-        cfg.env.num_agents, cfg.env.batch_size, cfg.env.delta,
-        device, stage.landscape_kwargs,
+        stage.dim,
+        stage.landscape_name,
+        cfg.env.num_agents,
+        cfg.env.batch_size,
+        cfg.env.delta,
+        device,
+        stage.landscape_kwargs,
     )
     policy = build_policy(net, env, device)
     critic = build_critic(critic_net)
@@ -234,9 +247,13 @@ def eval_on_task(net, stage: Stage, cfg, device, n_episodes: int = 5) -> float:
     hard task regardless of what stage it is currently training on?
     """
     env = make_env(
-        stage.dim, stage.landscape_name,
-        cfg.env.num_agents, cfg.env.batch_size, cfg.env.delta,
-        device, stage.landscape_kwargs,
+        stage.dim,
+        stage.landscape_name,
+        cfg.env.num_agents,
+        cfg.env.batch_size,
+        cfg.env.delta,
+        device,
+        stage.landscape_kwargs,
     )
     policy = build_policy(net, env, device)
     policy.eval()
@@ -272,7 +289,9 @@ def run_direct_baseline(final_stage: Stage, total_iters: int, cfg, device, seed:
         threshold=float("-inf"),
         landscape_kwargs=final_stage.landscape_kwargs,
     )
-    print(f"\n  [Direct baseline] dim={final_stage.dim}, fn={final_stage.landscape_name}, iters={total_iters}")
+    print(
+        f"\n  [Direct baseline] dim={final_stage.dim}, fn={final_stage.landscape_name}, iters={total_iters}"
+    )
     return train_stage(direct_stage, net, critic_net, optim, cfg, device)
 
 
@@ -304,9 +323,13 @@ def run_domain_randomization_baseline(stages, total_iters: int, cfg, device, see
         stage = stages[int(rng.integers(len(stages)))]
 
         env = make_env(
-            stage.dim, stage.landscape_name,
-            cfg.env.num_agents, cfg.env.batch_size, cfg.env.delta,
-            device, stage.landscape_kwargs,
+            stage.dim,
+            stage.landscape_name,
+            cfg.env.num_agents,
+            cfg.env.batch_size,
+            cfg.env.delta,
+            device,
+            stage.landscape_kwargs,
         )
         policy = build_policy(net, env, device)
         critic = build_critic(critic_net)
@@ -347,7 +370,9 @@ def run_domain_randomization_baseline(stages, total_iters: int, cfg, device, see
         # Eval on the final hard task (no weight update)
         r = eval_on_task(net, final_stage, cfg, device, n_episodes=3)
         rewards_on_final.append(r)
-        print(f"  [domain rand] iter {it+1:3d}/{total_iters}  stage={stage.name}  final_r={r:.3f}")
+        print(
+            f"  [domain rand] iter {it+1:3d}/{total_iters}  stage={stage.name}  final_r={r:.3f}"
+        )
 
     return rewards_on_final
 
@@ -357,8 +382,13 @@ def run_domain_randomization_baseline(stages, total_iters: int, cfg, device, see
 # ---------------------------------------------------------------------------
 
 
-def plot_comparison(transfer_evals_by_seed, direct_rewards_by_seed, domain_rand_by_seed,
-                    stage_logs, output_dir):
+def plot_comparison(
+    transfer_evals_by_seed,
+    direct_rewards_by_seed,
+    domain_rand_by_seed,
+    stage_logs,
+    output_dir,
+):
     """
     Three-way comparison on the SAME final hard task.
 
@@ -380,9 +410,18 @@ def plot_comparison(transfer_evals_by_seed, direct_rewards_by_seed, domain_rand_
             interp_mat.append(np.interp(all_xs, xs_s, ys_s))
         interp_mat = np.array(interp_mat)
         cmean, cstd = interp_mat.mean(0), interp_mat.std(0)
-        ax.plot(all_xs, cmean, color="steelblue", linewidth=2,
-                label="Curriculum (eval on final task)", marker="o", markersize=4)
-        ax.fill_between(all_xs, cmean - cstd, cmean + cstd, alpha=0.2, color="steelblue")
+        ax.plot(
+            all_xs,
+            cmean,
+            color="steelblue",
+            linewidth=2,
+            label="Curriculum (eval on final task)",
+            marker="o",
+            markersize=4,
+        )
+        ax.fill_between(
+            all_xs, cmean - cstd, cmean + cstd, alpha=0.2, color="steelblue"
+        )
 
     # --- Direct baseline curve ---
     if direct_rewards_by_seed:
@@ -401,7 +440,13 @@ def plot_comparison(transfer_evals_by_seed, direct_rewards_by_seed, domain_rand_
         dr_mat = np.array([a[:min_dr] for a in dr_arrs])
         drm, drs = dr_mat.mean(0), dr_mat.std(0)
         xdr = np.arange(min_dr)
-        ax.plot(xdr, drm, color="seagreen", linewidth=2, label="Domain rand (random stage each iter)")
+        ax.plot(
+            xdr,
+            drm,
+            color="seagreen",
+            linewidth=2,
+            label="Domain rand (random stage each iter)",
+        )
         ax.fill_between(xdr, drm - drs, drm + drs, alpha=0.2, color="seagreen")
 
     # --- Stage boundaries (mean iteration count across seeds) ---
@@ -409,14 +454,22 @@ def plot_comparison(transfer_evals_by_seed, direct_rewards_by_seed, domain_rand_
         n_stages = len(stage_logs[0])
         boundary = 0
         for s_idx in range(n_stages):
-            mean_iters = np.mean([log[s_idx]["iters_used"] for log in stage_logs
-                                  if s_idx < len(log)])
+            mean_iters = np.mean(
+                [log[s_idx]["iters_used"] for log in stage_logs if s_idx < len(log)]
+            )
             boundary += mean_iters
             ax.axvline(boundary, color="gray", linestyle="--", alpha=0.45)
             # Use axes-fraction y so the label is never clipped by data limits.
-            ax.text(boundary + 0.3, 0.02, stage_logs[0][s_idx]["stage"],
-                    fontsize=7, rotation=90, va="bottom", color="gray",
-                    transform=ax.get_xaxis_transform())
+            ax.text(
+                boundary + 0.3,
+                0.02,
+                stage_logs[0][s_idx]["stage"],
+                fontsize=7,
+                rotation=90,
+                va="bottom",
+                color="gray",
+                transform=ax.get_xaxis_transform(),
+            )
 
     ax.set_xlabel(f"Total training iterations  (n={n_seeds} seeds, mean ± std)")
     ax.set_ylabel("Reward on final hard task")
@@ -446,13 +499,21 @@ def plot_curriculum_progression(all_records_by_seed, stage_logs, output_dir):
         n_stages = len(stage_logs[0])
         boundary = 0
         for s_idx in range(n_stages):
-            mean_iters = np.mean([log[s_idx]["iters_used"] for log in stage_logs
-                                  if s_idx < len(log)])
+            mean_iters = np.mean(
+                [log[s_idx]["iters_used"] for log in stage_logs if s_idx < len(log)]
+            )
             boundary += mean_iters
             ax.axvline(boundary, color="gray", linestyle="--", alpha=0.5)
-            ax.text(boundary + 0.3, 0.02, stage_logs[0][s_idx]["stage"],
-                    fontsize=7, rotation=90, va="bottom", color="gray",
-                    transform=ax.get_xaxis_transform())
+            ax.text(
+                boundary + 0.3,
+                0.02,
+                stage_logs[0][s_idx]["stage"],
+                fontsize=7,
+                rotation=90,
+                va="bottom",
+                color="gray",
+                transform=ax.get_xaxis_transform(),
+            )
 
     ax.set_xlabel(f"Training iteration  (n={len(arrs)} seeds, mean ± std)")
     ax.set_ylabel("Episode reward (on current stage's task)")
@@ -468,7 +529,9 @@ def plot_generalization_matrix(result, output_dir):
     dims = result["dims"]
     functions = result["functions"]
 
-    fig, ax = plt.subplots(figsize=(max(len(functions) * 1.5, 4), max(len(dims) * 1.2, 3)))
+    fig, ax = plt.subplots(
+        figsize=(max(len(functions) * 1.5, 4), max(len(dims) * 1.2, 3))
+    )
     im = ax.imshow(matrix, aspect="auto", cmap="RdYlGn")
     ax.set_xticks(range(len(functions)))
     ax.set_xticklabels(functions, rotation=30, ha="right")
@@ -491,7 +554,9 @@ def plot_generalization_matrix(result, output_dir):
 # ---------------------------------------------------------------------------
 
 
-@hydra.main(version_base=None, config_path="configs/curriculum", config_name="dimension")
+@hydra.main(
+    version_base=None, config_path="configs/curriculum", config_name="dimension"
+)
 def main(cfg: DictConfig):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output_dir = os.path.join(get_original_cwd(), cfg.output_dir)
@@ -550,7 +615,12 @@ def main(cfg: DictConfig):
             print(f"{'='*55}")
 
             rewards = train_stage(
-                stage, net, critic_net, optim, cfg, device,
+                stage,
+                net,
+                critic_net,
+                optim,
+                cfg,
+                device,
                 early_stop_fn=curriculum.update,
             )
             cumulative_iters += len(rewards)
@@ -564,7 +634,7 @@ def main(cfg: DictConfig):
 
         print(f"\n{curriculum.summary()}")
         all_stage_logs.append(curriculum.stage_log)
-        curriculum_rewards_by_seed[seed] = transfer_evals          # (iter, reward) pairs
+        curriculum_rewards_by_seed[seed] = transfer_evals  # (iter, reward) pairs
         all_stage_rewards_by_seed[seed] = [r["reward"] for r in all_records]
 
         # ------------------------------------------------------------------
@@ -572,7 +642,9 @@ def main(cfg: DictConfig):
         # ------------------------------------------------------------------
         total_iters = sum(e["iters_used"] for e in curriculum.stage_log)
         if cfg.get("run_baseline_comparison", True):
-            direct_rewards = run_direct_baseline(final_stage, total_iters, cfg, device, seed)
+            direct_rewards = run_direct_baseline(
+                final_stage, total_iters, cfg, device, seed
+            )
             direct_rewards_by_seed[seed] = direct_rewards
 
         # ------------------------------------------------------------------
@@ -613,7 +685,8 @@ def main(cfg: DictConfig):
             grid = EVAL_GRIDS.get(ctype, EVAL_GRIDS["dimension"])
             eval_max_steps = max(cfg.frames_per_batch // cfg.env.batch_size, 100)
             evaluator = GeneralizationEvaluator(
-                net, device,
+                net,
+                device,
                 num_agents=cfg.env.num_agents,
                 batch_size=cfg.env.batch_size,
                 delta=cfg.env.delta,
@@ -632,9 +705,9 @@ def main(cfg: DictConfig):
 
     # Three-way comparison: curriculum / direct / domain randomisation on same task
     plot_comparison(
-        curriculum_rewards_by_seed,   # {seed: [(iter, reward), ...]}
-        direct_rewards_by_seed,       # {seed: [reward, ...]}
-        domain_rand_by_seed,          # {seed: [reward, ...]}
+        curriculum_rewards_by_seed,  # {seed: [(iter, reward), ...]}
+        direct_rewards_by_seed,  # {seed: [reward, ...]}
+        domain_rand_by_seed,  # {seed: [reward, ...]}
         all_stage_logs,
         output_dir,
     )
@@ -642,7 +715,9 @@ def main(cfg: DictConfig):
 
     # Full training progression across all curriculum stages
     if all_stage_rewards_by_seed:
-        plot_curriculum_progression(all_stage_rewards_by_seed, all_stage_logs, output_dir)
+        plot_curriculum_progression(
+            all_stage_rewards_by_seed, all_stage_logs, output_dir
+        )
         print(f"Progression plot saved → {output_dir}/curriculum_progression.png")
 
     grid = EVAL_GRIDS.get(ctype, EVAL_GRIDS["dimension"])
@@ -650,7 +725,11 @@ def main(cfg: DictConfig):
         mean_matrix = np.nanmean(gen_matrices, axis=0)
         np.save(os.path.join(output_dir, "generalization.npy"), mean_matrix)
         plot_generalization_matrix(
-            {"dims": grid["dims"], "functions": grid["functions"], "matrix": mean_matrix},
+            {
+                "dims": grid["dims"],
+                "functions": grid["functions"],
+                "matrix": mean_matrix,
+            },
             output_dir,
         )
         print(f"Generalization heatmap saved → {output_dir}/generalization.png")
@@ -674,17 +753,17 @@ def main(cfg: DictConfig):
         },
         # {str(seed): [reward, ...]}
         "direct_rewards": {
-            str(s): [float(r) for r in rs]
-            for s, rs in direct_rewards_by_seed.items()
+            str(s): [float(r) for r in rs] for s, rs in direct_rewards_by_seed.items()
         },
         "domain_rand_rewards": {
-            str(s): [float(r) for r in rs]
-            for s, rs in domain_rand_by_seed.items()
+            str(s): [float(r) for r in rs] for s, rs in domain_rand_by_seed.items()
         },
         "gen_dims": grid["dims"],
         "gen_functions": grid["functions"],
         "gen_matrices": [m.tolist() for m in gen_matrices] if gen_matrices else [],
-        "gen_matrix_mean": np.nanmean(gen_matrices, axis=0).tolist() if gen_matrices else [],
+        "gen_matrix_mean": (
+            np.nanmean(gen_matrices, axis=0).tolist() if gen_matrices else []
+        ),
     }
     results_path = os.path.join(output_dir, "results.json")
     with open(results_path, "w") as f:
