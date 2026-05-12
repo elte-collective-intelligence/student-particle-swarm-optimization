@@ -3,10 +3,10 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-import torch
-import pytest
-from models import DimAgnosticNet, DimAgnosticCritic
-from training.curriculum import CurriculumManager, Stage
+import torch  # noqa: E402
+import pytest  # noqa: E402
+from models import DimAgnosticNet, DimAgnosticCritic  # noqa: E402
+from training.curriculum import CurriculumManager, Stage  # noqa: E402
 
 
 class TestDimAgnosticNet:

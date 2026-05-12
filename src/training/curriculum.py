@@ -8,8 +8,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from envs.env import PSOEnv
-from torchrl.envs import TransformedEnv, RewardSum
+from envs.env import PSOEnv  # noqa: E402
+from torchrl.envs import TransformedEnv, RewardSum  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Stage definition

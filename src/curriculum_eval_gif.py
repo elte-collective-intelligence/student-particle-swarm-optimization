@@ -8,9 +8,9 @@ from omegaconf import OmegaConf
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from models import DimAgnosticNet, build_curriculum_policy
-from training.curriculum import make_env
-from visualization import SwarmVisualizer
+from models import DimAgnosticNet, build_curriculum_policy  # noqa: E402
+from training.curriculum import make_env  # noqa: E402
+from visualization import SwarmVisualizer  # noqa: E402
 
 CURRICULUM_CONFIG_DIR = Path(__file__).parent / "configs" / "curriculum"
 

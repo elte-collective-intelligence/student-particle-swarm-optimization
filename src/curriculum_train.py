@@ -5,23 +5,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-import torch
-import torch.distributions as d
-import numpy as np
-import matplotlib.pyplot as plt
-import hydra
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
-from tensordict.nn import TensorDictModule
-from torchrl.modules import ProbabilisticActor
-from tensordict.nn.distributions import CompositeDistribution
-from torchrl.data.replay_buffers import ReplayBuffer
-from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
-from torchrl.data.replay_buffers.storages import LazyTensorStorage
+import torch  # noqa: E402
+import torch.distributions as d  # noqa: E402
+import numpy as np  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import hydra  # noqa: E402
+from hydra.utils import get_original_cwd  # noqa: E402
+from omegaconf import DictConfig  # noqa: E402
+from tensordict.nn import TensorDictModule  # noqa: E402
+from torchrl.data.replay_buffers import ReplayBuffer  # noqa: E402
+from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement  # noqa: E402
+from torchrl.data.replay_buffers.storages import LazyTensorStorage  # noqa: E402
 
-from models import DimAgnosticNet, DimAgnosticCritic, build_curriculum_policy
-from training.curriculum import CurriculumManager, Stage, make_env
-from eval.generalization import GeneralizationEvaluator
+from models import DimAgnosticNet, DimAgnosticCritic, build_curriculum_policy  # noqa: E402
+from training.curriculum import CurriculumManager, Stage, make_env  # noqa: E402
+from eval.generalization import GeneralizationEvaluator  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Eval grid per curriculum type

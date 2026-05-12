@@ -8,8 +8,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import build_curriculum_policy
-from training.curriculum import make_env
+from models import build_curriculum_policy  # noqa: E402
+from training.curriculum import make_env  # noqa: E402
 
 
 class GeneralizationEvaluator:
