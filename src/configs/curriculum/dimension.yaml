@@ -1,0 +1,35 @@
+# Curriculum: grow search-space dimension (2D → 5D → 10D → 30D)
+# Advances on Sphere so the policy learns spatial structure before harder functions.
+
+curriculum:
+  type: dimension
+  window: 10          # rolling window size for reward threshold check
+
+seeds: [42, 43, 44, 45, 46]
+
+model:
+  hidden_size: 64
+  learning_rate: 3e-4
+
+env:
+  num_agents: 20
+  batch_size: 8
+  delta: 1.0
+
+# PPO hyperparameters
+frames_per_batch: 1024
+minibatch_size: 128
+num_epochs: 3
+max_grad_norm: 0.5
+clip_epsilon: 0.2
+entropy_coef: 0.01
+gamma: 0.99
+lmbda: 0.95
+
+# Post-training evaluation
+run_generalization: true
+n_eval_episodes: 3
+run_baseline_comparison: true
+run_domain_rand: true
+
+output_dir: src/outputs/curriculum/dimension

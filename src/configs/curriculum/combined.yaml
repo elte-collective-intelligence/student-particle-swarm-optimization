@@ -1,0 +1,35 @@
+# Combined curriculum: function complexity first, then dimension scaling.
+# Stages: sphere 2D → rastrigin 2D → rastrigin 5D → rastrigin 10D
+# Tests the hypothesis that learning function structure before scaling dimension
+# transfers better than either alone.
+
+curriculum:
+  type: combined
+  window: 10
+
+seeds: [42, 43, 44, 45, 46]
+
+model:
+  hidden_size: 128  # larger capacity for the combined challenge
+  learning_rate: 2e-4
+
+env:
+  num_agents: 20
+  batch_size: 8
+  delta: 1.0
+
+frames_per_batch: 1024
+minibatch_size: 128
+num_epochs: 3
+max_grad_norm: 0.5
+clip_epsilon: 0.2
+entropy_coef: 0.02
+gamma: 0.99
+lmbda: 0.95
+
+run_generalization: true
+n_eval_episodes: 3
+run_baseline_comparison: true
+run_domain_rand: true
+
+output_dir: src/outputs/curriculum/combined

@@ -65,6 +65,13 @@ def sphere(x: torch.Tensor) -> torch.Tensor:
     return -torch.sum(x**2, dim=-1)
 
 
+def rosenbrock(x: torch.Tensor) -> torch.Tensor:
+    """Rosenbrock (banana) function. Optimum at (1,...,1) with f=0."""
+    xi = x[..., :-1]
+    xi1 = x[..., 1:]
+    return -(100 * (xi1 - xi**2) ** 2 + (1 - xi) ** 2).sum(dim=-1)
+
+
 def rastrigin(x: torch.Tensor) -> torch.Tensor:
     """Rastrigin function: highly multimodal test function."""
     A = 10
@@ -86,6 +93,7 @@ def get_landscape_function(name: str, dim: int):
         "eggholder": eggholder,
         "sphere": sphere,
         "rastrigin": rastrigin,
+        "rosenbrock": rosenbrock,
     }
 
     if name in static_functions:
