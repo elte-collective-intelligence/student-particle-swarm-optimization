@@ -31,7 +31,8 @@ Don't worry if it seems complex at first, this README will walk you through ever
 10. [Visualization](#visualization)
 11. [Troubleshooting & Tips](#troubleshooting--tips)
 12. [Technical Details](#technical-details)
-13. [References](#references)
+13. [Semester Contribution — Task 2 (Spring 2026)](#semester-contribution-task-2-spring-2026)
+14. [References](#references)
 
 ---
 
@@ -695,6 +696,80 @@ def get_neighborhood_avg(positions, velocities, delta):
     
     return avg_pos, avg_vel
 ```
+
+---
+
+## Semester Contribution — Task 2 (Spring 2026)
+
+This section summarizes our **Task 2** work on curriculum learning and systematic evaluation for learned PSO coefficients, following the course assignment requirements.
+
+### Research question & hypothesis
+
+**Research question:** Can progressively increasing optimization difficulty—through higher dimensionality, more complex objective functions, moving optima, or a combined Rastrigin-based schedule—improve **sample efficiency** and **zero-shot generalization** for a shared neural policy that predicts inertia, cognitive, and social coefficients at every step, compared to training only on the final hardest task or using **domain randomization** (randomly sampling stages with the same total training budget)?
+
+**Hypothesis:** We expected an **ordered curriculum** to outperform domain randomization because intermediate stages may help the swarm learn reusable coordination behaviors. In contrast, random mixing constantly shifts the training distribution and may prevent the policy from focusing on a single skill long enough to stabilize learning. We anticipated the strongest improvements on the **function curriculum** (fixed 2D with gradually increasing complexity), mixed results on the **dimension curriculum** due to scaling difficulties at high dimensions, and only minor differences on the **dynamics curriculum**, where local swarm observations may already be sufficient despite environmental changes.
+
+### Implementation summary
+
+We implemented a **dimension-agnostic** actor–critic architecture together with a full curriculum-learning framework, while keeping the original `main.py` workflow unchanged for Task 1.
+
+| Area | What we added |
+|------|----------------|
+| **`src/models.py`** | Added `DimAgnosticNet` and `DimAgnosticCritic`. The architecture encodes per-dimension `(avg_pos_d, avg_vel_d)` features, aggregates them through mean pooling, and outputs Gaussian policy heads for ω, c₁, and c₂. `build_curriculum_policy` connects these modules to TorchRL `ProbabilisticActor` distributions. |
+| **`src/training/curriculum.py`** | Added `Stage` and `CurriculumManager`. Stages advance once a rolling reward average exceeds a threshold (after `min_iters`) or when `max_iters` is reached. Setting `threshold: -inf` disables early promotion. `make_env` creates `PSOEnv` instances for arbitrary `(dim, landscape)` pairs. Four Hydra-based presets were implemented: dimension, function, dynamics, and combined curricula. |
+| **`src/curriculum_train.py`** | Implemented the main training loop across **5 random seeds** and three methods: **curriculum**, **direct training**, and **domain randomization**, all using the same overall PPO iteration budget. The pipeline includes rollout collection, manual GAE computation, clipped PPO updates, and optional GIF logging through `gif_every` and `gif_log_iters`. |
+| **`src/eval/generalization.py`** | Added `GeneralizationEvaluator`, which evaluates frozen policies across configurable `(dimension, function)` combinations, including held-out evaluation tasks for each curriculum preset. |
+| **Configs & utilities** | Added configuration files under `src/configs/curriculum/*.yaml`, the batch execution script `./scripts/run_task2_all.sh`, and output visualizations stored in `images/semester_contribution/` and `src/outputs/curriculum/<preset>/`, including `comparison.png`, `generalization.png`, and `results.json`. |
+
+### Key results
+
+The following figures show representative examples from our semester experiments. Full quantitative plots and metrics are available in each experiment folder under `src/outputs/curriculum/`.
+
+![Learned swarm on easy 2D sphere curriculum](./images/semester_contribution/curriculum_sphere_easy_2d.gif)
+
+![Hard multimodal Rastrigin stage (combined / function-style curriculum)](./images/semester_contribution/curriculum_rastrigin_hard_2d.gif)
+
+![Best fitness vs training progress on easy sphere stage](./images/semester_contribution/curriculum_sphere_easy_convergence.png)
+
+**Main observations (5 seeds, mean ± std reported in plots and JSON files):**
+
+For the **function curriculum** (Sphere → Rosenbrock → Rastrigin → Eggholder), both curriculum learning and direct training eventually reached similar Eggholder rewards (~10–15). However, **domain randomization** remained unstable and mostly plateaued around ~10, suggesting that focused stage progression was more effective than randomly mixing tasks throughout training.
+
+The **dimension curriculum** successfully learned low-dimensional Sphere tasks, but performance dropped close to **0 reward** at 10D–30D across all methods. Some interesting **zero-shot generalization** behavior appeared on nearby unseen dimensions in the evaluation matrix, especially for intermediate-dimensional Rastrigin tasks, but extremely high-dimensional settings remained difficult. This likely reflects the limitations of the mean-pooling representation, which compresses too much per-dimension information.
+
+For the **dynamics curriculum** (static, slow-moving, and fast-moving Sphere optima), all approaches achieved rewards close to **1.0**, with very little separation between methods. The local relative observations and the simplicity of the convex objective appear sufficient even under environmental shifts, while the reward formulation itself does not explicitly encourage smoother tracking behavior.
+
+The **combined curriculum** (2D → 5D → 10D Rastrigin) also struggled at 10D for all methods. The combination of multimodality and increasing dimensionality exceeded the capabilities of the current architecture and training budget.
+
+### Conclusions & limitations
+
+Our results suggest that curriculum **ordering** matters most when different stages share transferable coordination patterns. When the final task is already manageable with direct PPO training—especially in low-dimensional settings—the main benefit of curriculum learning appears to be improved **training stability** rather than large performance gains.
+
+The **DimAgnosticNet** architecture enabled cross-dimensional training using a shared policy, but the fixed-size pooled representation likely reduced expressiveness in higher-dimensional environments. Rewards were based on dense improvements over **negated objective values**, and the policy was not given explicit information about the underlying function type. As a result, any task specialization had to emerge indirectly from the swarm dynamics alone.
+
+Finally, all experiments were conducted with finite seeds, iteration budgets, and batch sizes, so the observed trends should be interpreted qualitatively rather than as definitive benchmarks.
+
+### Future work
+
+Several extensions could improve performance and scalability:
+
+- Replacing mean pooling with **attention mechanisms** or set-based aggregation methods
+- Exploring adaptive or automated **curriculum schedulers**
+- Increasing training budgets for more challenging high-dimensional PSO tasks
+
+### Team contributions
+
+**Research (joint, both members)**
+
+We carried out the research **together as a team**: defining the research question and hypothesis, aligning the experimental setup with the assignment, reading background material, and jointly interpreting results, limitations, and conclusions.
+
+**Mohamad Mohamad — training experiments**
+
+- Ran and monitored the **dimension** curriculum (2D → 5D → 10D → 30D on Sphere) and the **function** curriculum (Sphere → Rosenbrock → Rastrigin → Eggholder in 2D), including associated configs, seeds, and output checks under `src/outputs/curriculum/`.
+
+**Kalloumah Sharbel — training experiments**
+
+- Ran and monitored the **dynamics** curriculum (static → slow → fast moving optima) and the **combined** curriculum (function complexity then dimension scaling on Rastrigin), including associated configs, seeds, and output checks under `src/outputs/curriculum/`.
 
 ---
 
