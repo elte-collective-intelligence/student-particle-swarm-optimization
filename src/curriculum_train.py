@@ -17,7 +17,11 @@ from torchrl.data.replay_buffers import ReplayBuffer  # noqa: E402
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement  # noqa: E402
 from torchrl.data.replay_buffers.storages import LazyTensorStorage  # noqa: E402
 
-from models import DimAgnosticNet, DimAgnosticCritic, build_curriculum_policy  # noqa: E402
+from models import (  # noqa: E402
+    DimAgnosticNet,
+    DimAgnosticCritic,
+    build_curriculum_policy,
+)
 from training.curriculum import CurriculumManager, Stage, make_env  # noqa: E402
 from eval.generalization import GeneralizationEvaluator  # noqa: E402
 
