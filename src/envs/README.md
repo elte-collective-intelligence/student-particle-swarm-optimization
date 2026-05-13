@@ -1,188 +1,121 @@
-# Environment Module
+# Environment and Topology Module
 
-This directory contains the Particle Swarm Optimization (PSO) environment implementation using TorchRL.
+This directory contains the TorchRL PSO environment and the communication-topology implementations used in the topology experiment.
 
 ## Files
 
-### `env.py`
-**Main PSO environment implementation.** This file:
-- Implements `PSOEnv` class extending TorchRL's `EnvBase`
-- Handles multi-agent particle dynamics
-- Computes rewards based on optimization progress
-- Manages observation and action spaces
+- `env.py`: `PSOEnv`, the vectorized multi-agent PSO environment.
+- `topology.py`: topology abstractions and factory functions.
+- `dynamic_functions.py`: static and dynamic benchmark landscapes.
+- `__init__.py`: module exports.
 
-**Key Class: `PSOEnv`**
+## Environment API
 
-**Initialization Parameters:**
+`PSOEnv` is constructed from an objective landscape wrapper and experiment settings:
+
 ```python
-PSOEnv(
-    n_particles=10,        # Number of particles (agents)
-    n_dims=2,              # Search space dimensionality
-    max_steps=100,         # Max steps per episode
-    bounds=(-5.0, 5.0),    # Search space boundaries
-    objective_function="sphere",  # Function to optimize
+from envs import PSOEnv
+
+env = PSOEnv(
+    landscape=landscape_fn,
+    num_agents=12,
+    device=device,
+    batch_size=(1,),
+    delta=1.0,
+    topology_config={"type": "ring", "k": 1, "include_self": True},
 )
 ```
 
-**Observation Space:**
-Each particle observes:
-- `position`: Current position [n_dims]
-- `velocity`: Current velocity [n_dims]
-- `personal_best_position`: Best position found by this particle [n_dims]
-- `personal_best_fitness`: Fitness at personal best [1]
-- `global_best_position`: Best position found by swarm [n_dims]
-- `global_best_fitness`: Best fitness in swarm [1]
+The environment maximizes negated objective scores, so higher scores are better. Particle positions and velocities are clamped internally to avoid numerical explosion.
 
-**Action Space:**
-Each particle outputs 4 continuous values:
-- `inertia`: Weight for previous velocity
-- `cognitive`: Weight for personal best attraction
-- `social`: Weight for global best attraction
-- `step_size`: Overall step magnitude
+## Observations
 
-**Reward:**
-Based on improvement in global best fitness:
+Each particle receives these tensors:
+
+| Key | Shape | Meaning |
+|---|---:|---|
+| `scores` | `[batch, agents]` | Current negated objective score. |
+| `positions` | `[batch, agents, dim]` | Current particle positions. |
+| `velocities` | `[batch, agents, dim]` | Current particle velocities. |
+| `personal_best_pos` | `[batch, agents, dim]` | Best position found by each particle. |
+| `personal_best_scores` | `[batch, agents]` | Score at each personal best. |
+| `neighborhood_best_pos` | `[batch, agents, dim]` | Best visible personal-best position under the active topology. |
+| `neighborhood_best_scores` | `[batch, agents]` | Score for the visible neighborhood best. |
+| `avg_pos` | `[batch, agents, dim]` | Distance-radius neighbor mean offset from the current position. |
+| `avg_vel` | `[batch, agents, dim]` | Distance-radius neighbor mean velocity offset. |
+
+`avg_pos` and `avg_vel` are still computed from the distance threshold `delta`. The topology experiment uses `neighborhood_best_pos` as the social information channel.
+
+## Actions
+
+The policy outputs three coefficient tensors:
+
+| Key | Shape | Clamp range |
+|---|---:|---:|
+| `inertia` | `[batch, agents, dim]` | `[0.0, 1.2]` |
+| `cognitive` | `[batch, agents, dim]` | `[0.0, 2.5]` |
+| `social` | `[batch, agents, dim]` | `[0.0, 2.5]` |
+
+The velocity update is:
+
 ```python
-reward = (prev_best_fitness - new_best_fitness) / prev_best_fitness
-```
-
-**Key Methods:**
-- `_reset()`: Initialize particles randomly in bounds
-- `_step()`: Update particle positions based on PSO dynamics
-- `_compute_fitness()`: Evaluate particles on objective function
-- `_update_bests()`: Update personal and global bests
-
-### `dynamic_functions.py`
-**Optimization objective functions.** This file:
-- Implements standard benchmark functions
-- Supports dynamic (time-varying) functions
-- Provides function factory for easy selection
-
-**Available Functions:**
-
-**`sphere(x)`**
-- Simple convex function: f(x) = Σ x_i²
-- Global minimum: f(0) = 0
-- Use for: Initial testing, baseline
-
-**`rastrigin(x)`**
-- Multimodal: f(x) = 10n + Σ[x_i² - 10cos(2πx_i)]
-- Many local minima, tests exploration
-- Global minimum: f(0) = 0
-
-**`rosenbrock(x)`**
-- Valley-shaped: f(x) = Σ[100(x_{i+1} - x_i²)² + (1-x_i)²]
-- Narrow valley, tests exploitation
-- Global minimum: f(1,...,1) = 0
-
-**`ackley(x)`**
-- Complex multimodal with many local minima
-- Tests both exploration and exploitation
-- Global minimum: f(0) = 0
-
-**Dynamic Functions:**
-```python
-# Function that changes over time
-def dynamic_sphere(x, t):
-    offset = np.sin(t * 0.1) * 2
-    return sphere(x - offset)
-```
-
-### `__init__.py`
-**Module exports.** Exports:
-- `PSOEnv`: Main environment class
-- `make_env()`: Factory function for environment creation
-- Objective function utilities
-
-## Usage
-
-### Creating an Environment
-```python
-from src.envs import make_env
-
-# Simple environment
-env = make_env(n_particles=10, n_dims=2)
-
-# With specific function
-env = make_env(
-    n_particles=20,
-    n_dims=5,
-    objective_function="rastrigin",
-    max_steps=200
+velocity = (
+    inertia * velocity
+    + cognitive * (personal_best_pos - positions)
+    + social * social_signal
 )
 ```
 
-### Running an Episode
+When `use_topology_social=True`, `social_signal` is `neighborhood_best_pos - positions`. When disabled, it falls back to `avg_pos`.
+
+## Reward
+
+The reward combines personal improvement and neighborhood-best improvement:
+
 ```python
-from tensordict import TensorDict
-
-# Reset
-td = env.reset()
-
-# Step loop
-for _ in range(max_steps):
-    # Get actions from policy
-    actions = policy(td)
-    
-    # Step environment
-    td = env.step(actions)
-    
-    # Check termination
-    if td["done"].all():
-        break
+personal_delta = scores - last_scores
+neighborhood_delta = neighborhood_best_scores - last_neighborhood_best_scores
+reward = 0.5 * tanh(personal_delta / scale) + 0.5 * tanh(neighborhood_delta / scale)
 ```
 
-### Vectorized Environment
-```python
-from torchrl.envs import ParallelEnv
+All values are sanitized with `torch.nan_to_num` before returning to the policy loop.
 
-# Create 8 parallel environments
-vec_env = ParallelEnv(
-    num_workers=8,
-    create_env_fn=lambda: make_env(n_particles=10)
-)
+## Topology API
+
+All topologies expose a boolean adjacency matrix `A` with shape `[num_particles, num_particles]`, where `A[i, j]` means particle `j` is visible to particle `i`.
+
+Supported topology configs:
+
+```yaml
+# Fully connected gBest
+type: global
+include_self: true
+
+# Ring lBest, +/- k neighbors
+type: ring
+k: 1
+include_self: true
+
+# Toroidal 2D grid. rows/cols are inferred if omitted.
+type: von_neumann
+rows: null
+cols: null
+include_self: true
+
+# Dynamic position-space neighbors
+type: knearest
+k: 2
+recompute_interval: 5
+symmetric: true
+include_self: true
 ```
 
-## Architecture
+`create_topology()` accepts either a flat topology dictionary or a Hydra-style wrapper with a nested `topology` entry. `KNearestTopology` needs positions at initialization and recomputes adjacency every `recompute_interval` steps.
 
-```
-PSOEnv
-├── Observation Space
-│   ├── position [n_particles, n_dims]
-│   ├── velocity [n_particles, n_dims]
-│   ├── personal_best_position [n_particles, n_dims]
-│   ├── personal_best_fitness [n_particles, 1]
-│   ├── global_best_position [n_dims]
-│   └── global_best_fitness [1]
-│
-├── Action Space
-│   └── parameters [n_particles, 4] (inertia, cognitive, social, step_size)
-│
-└── Dynamics
-    ├── Velocity Update
-    │   v = inertia*v + cognitive*r1*(pbest-x) + social*r2*(gbest-x)
-    ├── Position Update
-    │   x = x + step_size * v
-    └── Boundary Handling
-        └── Clip to bounds
-```
+## Usage Notes
 
-## Key Concepts
-
-### Multi-Agent Structure
-Each particle is an independent agent that:
-1. Observes its local state + global best
-2. Outputs PSO coefficients
-3. Receives shared reward (cooperative)
-
-### Reward Design
-Cooperative reward based on swarm progress:
-- All particles receive same reward
-- Encourages collective optimization
-- Reward = improvement in global best fitness
-
-### Episode Termination
-Episode ends when:
-- Maximum steps reached
-- Global best fitness below threshold (solved)
-- All particles stuck (no improvement for N steps)
+- Use `global` as the exploitation-heavy baseline.
+- Use `ring` or `von_neumann` when the experiment should preserve local sub-swarms and slower information flow.
+- Use `knearest` for adaptive local communication based on particle positions.
+- For `von_neumann`, ensure `rows * cols == num_agents` if you provide explicit grid dimensions.
+- Keep `include_self=true` for standard PSO-style personal visibility unless you are testing a specific ablation.

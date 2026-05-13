@@ -11,7 +11,7 @@ Quick smoke test for development:
 - ~30 seconds runtime
 
 ```bash
-python src/main.py --config-path ../conf/experiments --config-name smoke_train
+python src/main.py --config-path configs/experiments --config-name smoke_train
 ```
 
 ### Full Train (`full_train.yaml`)
@@ -21,7 +21,7 @@ Full training experiment:
 - Lower learning rate (1e-4)
 
 ```bash
-python src/main.py --config-path ../conf/experiments --config-name full_train
+python src/main.py --config-path configs/experiments --config-name full_train
 ```
 
 ### Topology Quick Train (`topology_quick_train.yaml`)
@@ -49,7 +49,7 @@ Training on dynamic (moving optimum) landscapes:
 - 150 iterations
 
 ```bash
-python src/main.py --config-path ../conf/experiments --config-name dynamic_train
+python src/main.py --config-path configs/experiments --config-name dynamic_train
 ```
 
 ### Rastrigin Train (`rastrigin_train.yaml`)
@@ -58,7 +58,7 @@ Training on multimodal Rastrigin function:
 - 200 iterations
 
 ```bash
-python src/main.py --config-path ../conf/experiments --config-name rastrigin_train
+python src/main.py --config-path configs/experiments --config-name rastrigin_train
 ```
 
 ## Evaluation Experiments
@@ -70,7 +70,7 @@ Evaluation with full 2D/3D visualizations:
 - Generates animated GIFs
 
 ```bash
-python src/eval.py --config-path ../conf/experiments --config-name eval_vis
+python src/eval.py --config-path configs/experiments --config-name eval_vis
 ```
 
 ### Topology Quick Eval (`topology_quick_eval.yaml`)
@@ -107,6 +107,37 @@ python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --mul
 
 Outputs are grouped under:
 - `src/outputs/eval_multi_matrix/multirun/<date>/<time>/<landscape>_<dim>d/seed_<seed>/`
+
+## End-to-End Topology Workflow
+
+Run these from the repository root.
+
+1. Verify the implementation:
+   ```bash
+   pytest test/ -v
+   ```
+
+2. Train compatible checkpoints for all landscape/dimension pairs:
+   ```bash
+   python src/main.py --config-path configs/experiments --config-name matrix_train --multirun
+   ```
+
+3. Run the assignment-scale topology matrix:
+   ```bash
+   python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --multirun
+   ```
+
+4. Generate qualitative side-by-side GIFs:
+   ```bash
+   python src/generate_side_by_side_gifs.py functions=[sphere,rastrigin,dynamic_sphere]
+   ```
+
+5. Copy presentation artifacts into `images/semester_contribution/` using clear names:
+   - PNG convention: `{function}_{dimension}_seed{seed}_{plot_type}.png`
+   - GIF convention: `side_by_side_{function}.gif`
+   - Analysis CSVs: `analysis/trained_topology_summary.csv`, `analysis/wins_vs_global.csv`, `analysis/all_matrix_metrics_with_dimension.csv`
+
+The checked-in semester artifact folder already follows this convention.
 
 ### Matrix Train (`matrix_train.yaml`)
 Training preset for the full evaluation matrix:

@@ -41,6 +41,22 @@ python src/eval.py --config-path configs/experiments --config-name eval_vis mode
 - `evaluate_policy()`: Run policy on multiple episodes and collect metrics
 - `compare_policies()`: Compare trained policy against random baseline
 
+### `eval_multi_topology.py`
+**Topology matrix evaluation script.** This file:
+- Runs the same policy across multiple communication topologies
+- Supports single-condition runs and Hydra multirun matrices
+- Saves aggregate JSON/CSV metrics, per-episode CSV rows, run summaries, and comparison plots
+- Collects convergence, diversity, and information-spread metrics through helpers in `src/eval/`
+
+**Usage:**
+```bash
+# One landscape/seed, all configured topologies
+python src/eval_multi_topology.py
+
+# Assignment matrix: 3 functions x 2 dimensions x 5 seeds x 4 topologies
+python src/eval_multi_topology.py --config-name eval_multi_topology_matrix --multirun
+```
+
 ### `visualization.py`
 **Swarm visualization module.** This file:
 - Creates 2D and 3D animated GIFs of particle swarm movement
@@ -73,8 +89,15 @@ Contains all configuration files for experiments, models, and visualization.
 See [configs/README.md](configs/README.md) for details.
 
 ### `envs/`
-Contains the PSO environment implementation with multi-agent support.
+Contains the PSO environment implementation with multi-agent and topology support.
 See [envs/README.md](envs/README.md) for details.
+
+### `eval/`
+Contains analysis helpers:
+- `convergence.py`: AUC, time-to-threshold, improvement rate, plateau fraction.
+- `diversity.py`: mean pairwise distance, position spread, velocity speed spread, velocity alignment.
+- `information_spread.py`: adoption and entropy metrics for how best-solution information propagates.
+- `comparison_plots.py`: convergence, diversity, distribution, heatmap, and radar plots.
 
 ### `outputs/`
 Training outputs including:
@@ -117,16 +140,22 @@ The codebase follows a modular design:
 
 ### Multi-Agent PSO
 Each particle in the swarm is an agent that:
-- Observes its position, velocity, personal best, and global best
+- Observes its position, velocity, personal best, and topology-visible neighborhood best
 - Outputs PSO coefficients (inertia, cognitive, social)
 - Receives reward based on optimization progress
 
 ### Action Space
-Each agent outputs 4 continuous values:
-- `inertia`: Weight for previous velocity [0.3, 1.1]
-- `cognitive`: Weight for personal best attraction [0.5, 2.5]
-- `social`: Weight for global best attraction [0.5, 2.5]
-- `step_size`: Overall step magnitude [0.5, 2.5]
+Each agent outputs 3 continuous coefficient vectors:
+- `inertia`: Weight for previous velocity, clamped by the environment to `[0.0, 1.2]`
+- `cognitive`: Weight for personal-best attraction, clamped to `[0.0, 2.5]`
+- `social`: Weight for topology-visible neighborhood-best attraction, clamped to `[0.0, 2.5]`
+
+### Communication Topologies
+The active topology determines which personal-best positions are visible to each particle:
+- `global`: fully connected gBest communication.
+- `ring`: local lBest communication with `k` neighbors on each side.
+- `von_neumann`: toroidal 2D grid communication.
+- `knearest`: dynamic position-space neighbors recomputed every `recompute_interval` steps.
 
 ### Objective Functions
 Training and evaluation on standard optimization benchmarks:

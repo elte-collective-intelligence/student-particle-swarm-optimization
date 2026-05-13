@@ -34,6 +34,23 @@ There is no universally best topology. The best choice depends on whether the la
 
 Important limitations remain. Only five seeds and ten evaluation episodes per condition were used, and no formal significance tests were performed. PPO did not consistently outperform the random baseline, so conclusions about topology are stronger than conclusions about learned control. Some information-spread metrics were weak or near-zero, making convergence and diversity metrics more reliable. Results also depend on the dynamic-sphere schedule, swarm size, training budget, PPO setup, and the limited set of tested landscapes.
 
+## Implementation Notes
+
+Topology support is implemented in `src/envs/topology.py` and integrated into `src/envs/env.py`. Each topology is represented as a boolean adjacency matrix where row `i` lists which particles are visible to particle `i`. During each environment step, the environment computes each particle's `neighborhood_best_pos` and `neighborhood_best_scores` from that adjacency matrix. The PSO social term can then point toward the best position known through the active topology instead of always using a global best.
+
+The evaluation layer is implemented in `src/eval_multi_topology.py`, with metric helpers under `src/eval/`. It records convergence metrics, diversity metrics, information-spread metrics, per-episode CSV rows, summary CSV/JSON files, and comparison plots. The full assignment matrix is configured in `src/configs/eval_multi_topology_matrix.yaml`.
+
+## Artifact Organization
+
+The semester contribution artifacts are stored under `images/semester_contribution/`:
+
+- `analysis/`: aggregate CSV tables, including `trained_topology_summary.csv`, `wins_vs_global.csv`, and `all_matrix_metrics_with_dimension.csv`.
+- `key_figures/`: presentation-ready PNGs and GIFs named as `{function}_{dimension}_seed{seed}_{plot_type}.png` or `side_by_side_{function}.gif`.
+- `gif_compare_20260509_113613/`: source side-by-side GIFs used for qualitative topology comparison.
+- `analysis.md`: report-ready interpretation of the topology results.
+
+Raw reproducibility outputs are preserved in `src/outputs/` and mirrored in the course-level share package at `../topology_experiment_share/`.
+
 ## Future Work
 
 Future work should run more seeds, more evaluation episodes, and paired statistical tests. The learned controller should be compared against stronger baselines, including fixed PSO, random control, and hand-tuned variants. Additional landscapes and dimensions would clarify whether the `rastrigin 10D` reversal is a general high-dimensional effect or specific to this benchmark. A promising extension is adaptive topology control, where the swarm switches between global and local communication depending on convergence, diversity, or environmental change.
